@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Times Tables">
+<title>Times Tables</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<style>
+  :root {
+    --bg: #000000;
+    --fg: #ffffff;
+    --muted: #8e8e93;
+    --faint: #48484a;
+    --card: #1c1c1e;
+    --card-down: #3a3a3c;
+    --empty: #2c2c2e;
+    --green: #30d158;
+    --amber: #ff9f0a;
+    --red: #ff453a;
+    --round: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--fg); }
+  body {
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    overflow: hidden;
+  }
+  button, .btn-small { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; touch-action: manipulation; }
+  :focus { outline: none; }
+  :focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+  [hidden] { display: none !important; }
+
+  .c-green { background: var(--green) !important; }
+  .c-amber { background: var(--amber) !important; }
+  .c-red { background: var(--red) !important; }
+  .t-green { color: var(--green) !important; }
+  .t-amber { color: var(--amber) !important; }
+  .t-red { color: var(--red) !important; }
+
+  /* Screens */
+  .screen {
+    position: fixed; inset: 0; width: 100%; max-width: 480px; margin: 0 auto;
+    display: none; flex-direction: column;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
+  }
+  .screen.active { display: flex; animation: fade .18s ease-out; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Home */
+  .home-head h1 { font-family: var(--round); font-size: 30px; font-weight: 800; letter-spacing: -.01em; }
+  .home-head p { color: var(--muted); font-size: 16px; margin-top: 4px; }
+  .go-wrap { flex: 1; min-height: 0; display: grid; place-items: center; }
+  .go {
+    width: min(66vw, 36vh, 260px); aspect-ratio: 1; border-radius: 50%;
+    background: var(--green); color: #000;
+    font-family: var(--round); font-size: min(18vw, 10vh, 80px); font-weight: 900; letter-spacing: .02em;
+    box-shadow: 0 0 0 12px rgba(48, 209, 88, .14), 0 0 80px rgba(48, 209, 88, .45);
+    transition: transform .12s ease;
+  }
+  .go:active { transform: scale(.94); }
+  .map-card {
+    display: flex; align-items: center; gap: 16px; width: 100%;
+    padding: 14px 18px 14px 14px; border-radius: 20px; background: var(--card); text-align: left;
+  }
+  .map-card:active { background: var(--card-down); }
+  .mini { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; width: 96px; flex: none; }
+  .mini i { aspect-ratio: 1; border-radius: 2px; background: var(--card-down); }
+  .map-text { flex: 1; min-width: 0; }
+  .map-text b { display: block; font-size: 18px; font-weight: 700; }
+  .map-text span { display: block; color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .chev { color: var(--faint); font-size: 30px; font-weight: 300; line-height: 1; }
+  .note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 12px; }
+
+  /* Play */
+  .top { display: flex; align-items: center; gap: 14px; height: 40px; flex: none; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--card); color: var(--muted); font-size: 17px; display: grid; place-items: center; flex: none; }
+  .icon-btn:active { background: var(--card-down); }
+  .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--card); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--green); border-radius: 3px; transition: width .25s ease; }
+  .qcount { color: var(--muted); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+  .stage { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--round); font-variant-numeric: tabular-nums; }
+  .sum { font-size: clamp(52px, min(19vw, 10.5vh), 112px); font-weight: 700; line-height: 1.05; white-space: nowrap; }
+  .sum.count { color: var(--green); animation: pop .55s ease-out; }
+  @keyframes pop { from { transform: scale(1.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .answer { font-size: clamp(44px, min(16vw, 9vh), 96px); font-weight: 700; line-height: 1.15; min-height: 1.15em; margin-top: 2.5vh; }
+  .answer:empty::after { content: ""; display: inline-block; width: .5em; height: .07em; background: var(--fg); animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .answer.ok { color: var(--green); }
+  .answer.bad { color: var(--red); text-decoration: line-through; text-decoration-thickness: .07em; }
+  .reveal { font-size: clamp(30px, min(11vw, 6.5vh), 60px); font-weight: 800; color: var(--green); line-height: 1.2; min-height: 1.2em; margin-top: .5vh; }
+  .stage.counting .answer, .stage.counting .reveal { visibility: hidden; }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; flex: none; transition: opacity .2s ease; }
+  .keypad.dim { opacity: .3; }
+  .keypad button {
+    height: clamp(52px, 8.2vh, 76px); border-radius: 16px; background: var(--card);
+    font-family: var(--round); font-size: clamp(26px, 4vh, 34px); font-weight: 600; font-variant-numeric: tabular-nums;
+    transition: background .08s;
+  }
+  .keypad button.down { background: var(--card-down); }
+  .keypad .del { color: var(--muted); font-size: clamp(22px, 3.4vh, 28px); }
+
+  /* Results */
+  .res { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .res-score { font-family: var(--round); font-size: clamp(96px, min(36vw, 19vh), 168px); font-weight: 800; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .res-score small { font-size: .36em; color: var(--muted); font-weight: 700; letter-spacing: 0; }
+  .res-msg { font-size: 19px; font-weight: 600; margin-top: 14px; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 4.5vh; }
+  .stat { background: var(--card); border-radius: 20px; padding: 18px 12px 16px; }
+  .stat b { display: block; font-family: var(--round); font-size: clamp(30px, 9vw, 40px); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat span { display: block; color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .actions { display: flex; flex-direction: column; gap: 10px; flex: none; }
+  .btn-go { height: 66px; border-radius: 33px; background: var(--green); color: #000; font-family: var(--round); font-size: 24px; font-weight: 900; transition: transform .1s; }
+  .btn-go:active { transform: scale(.98); }
+  .row { display: flex; gap: 10px; }
+  .btn { flex: 1; height: 54px; border-radius: 27px; background: var(--card); font-size: 17px; font-weight: 600; display: grid; place-items: center; }
+  .btn:active { background: var(--card-down); }
+  .btn-ok { background: var(--green); color: #000; }
+  .btn-danger { background: var(--red); color: #fff; }
+
+  /* Heat map */
+  #map { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #map > * { flex-shrink: 0; }
+  .map-top { display: flex; align-items: center; justify-content: space-between; height: 40px; margin-bottom: 14px; }
+  .back { color: var(--green); font-size: 17px; font-weight: 600; padding: 8px 8px 8px 0; }
+  .map-top h2 { font-size: 17px; font-weight: 700; }
+  .spacer { width: 64px; }
+  .grid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
+  .hd { aspect-ratio: 1; display: grid; place-items: center; font-family: var(--round); font-size: clamp(10px, 2.9vw, 13px); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hd.on { color: var(--fg); }
+  .hd.corner { color: var(--faint); }
+  .sq { aspect-ratio: 1; border-radius: 4px; background: var(--empty); }
+  .sq.sel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg); position: relative; z-index: 1; }
+  .info { min-height: 48px; margin: 16px 0 10px; font-size: 15px; line-height: 1.45; color: var(--muted); text-align: center; }
+  .info b { color: var(--fg); font-weight: 700; }
+  .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .legend div { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 14px; padding: 12px 14px; }
+  .legend i { width: 14px; height: 14px; border-radius: 4px; flex: none; background: var(--card-down); }
+  .legend span { flex: 1; color: var(--muted); font-size: 14px; }
+  .legend b { font-family: var(--round); font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .data { display: flex; justify-content: center; gap: 6px; margin-top: 20px; }
+  .btn-small { display: inline-flex; align-items: center; padding: 10px 14px; border-radius: 20px; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .btn-small:active { background: var(--card); }
+  .btn-small.danger { color: var(--red); }
+  .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
+
+  /* Confirm sheet and toast */
+  .modal { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .7); display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); animation: fade .15s ease-out; }
+  .sheet { width: 100%; max-width: 440px; background: var(--card); border-radius: 24px; padding: 24px 18px 18px; }
+  .sheet p { font-size: 17px; line-height: 1.4; text-align: center; margin-bottom: 20px; }
+  .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); z-index: 20; transform: translate(-50%, 16px); background: #2c2c2e; padding: 12px 18px; border-radius: 22px; font-size: 15px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* Level up */
+  .levelup { position: fixed; inset: 0; z-index: 30; background: var(--bg); display: flex; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); animation: fade .25s ease-out; }
+  .lvl-body { width: 100%; max-width: 440px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4vh; text-align: center; }
+  .lvl-text { font-family: var(--round); font-size: clamp(26px, 7.5vw, 34px); font-weight: 800; line-height: 1.25; text-wrap: balance; }
+  .lvl-emoji, .emo { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-weight: 400; }
+  .lvl-emoji { display: block; font-size: clamp(100px, 32vw, 150px); line-height: 1.1; margin-top: 2vh; animation: devil .9s cubic-bezier(.2, 1.4, .4, 1) .35s both; }
+  @keyframes devil {
+    0% { transform: scale(0) rotate(-30deg); opacity: 0; }
+    60% { transform: scale(1.15) rotate(12deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+  .lvl-map { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; width: min(64vw, 240px); }
+  .lvl-map i { aspect-ratio: 1; border-radius: 3px; background: var(--empty); transition: background-color .45s ease; }
+  .lvl-go { width: 100%; opacity: 0; pointer-events: none; transition: opacity .3s ease, transform .1s; }
+  .lvl-go.ready { opacity: 1; pointer-events: auto; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<section id="home" class="screen">
+  <header class="home-head">
+    <h1>Times Tables</h1>
+    <p>Ten quick sums, from 1 × 1 to 12 × 12</p>
+  </header>
+  <div class="go-wrap"><button id="go" class="go">GO</button></div>
+  <button id="openMap" class="map-card">
+    <div id="mini" class="mini" aria-hidden="true"></div>
+    <div class="map-text"><b id="miniTitle">Heat map</b><span id="miniText"></span></div>
+    <span class="chev" aria-hidden="true">›</span>
+  </button>
+  <p id="note" class="note" hidden>Preview: progress resets when you close it.</p>
+</section>
+
+<section id="play" class="screen">
+  <div class="top">
+    <button id="quit" class="icon-btn" aria-label="Stop">✕</button>
+    <div class="bar"><i id="bar"></i></div>
+    <span id="qcount" class="qcount">1/10</span>
+  </div>
+  <div id="stage" class="stage">
+    <div id="sum" class="sum"></div>
+    <div id="answer" class="answer"></div>
+    <div id="reveal" class="reveal"></div>
+  </div>
+  <div id="keypad" class="keypad">
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <span></span><button data-k="0">0</button><button data-k="del" class="del" aria-label="Delete">⌫</button>
+  </div>
+</section>
+
+<section id="results" class="screen">
+  <div class="res">
+    <p id="resScore" class="res-score"></p>
+    <p id="resMsg" class="res-msg"></p>
+    <div class="stats">
+      <div class="stat"><b id="resTime"></b><span>Time taken</span></div>
+      <div class="stat"><b id="resAvg"></b><span>Average per sum</span></div>
+    </div>
+  </div>
+  <div class="actions">
+    <button id="again" class="btn-go">Go again</button>
+    <div class="row">
+      <button id="resMap" class="btn">Heat map</button>
+      <button id="resHome" class="btn">Home</button>
+    </div>
+  </div>
+</section>
+
+<section id="map" class="screen">
+  <div class="map-top">
+    <button id="mapBack" class="back">‹ Home</button>
+    <h2 id="mapTitle">Heat map</h2>
+    <span class="spacer"></span>
+  </div>
+  <div id="grid" class="grid"></div>
+  <p id="info" class="info"></p>
+  <div class="legend">
+    <div><i class="c-green"></i><span id="lGreen"></span><b id="nGreen">0</b></div>
+    <div><i class="c-amber"></i><span id="lAmber"></span><b id="nAmber">0</b></div>
+    <div><i class="c-red"></i><span id="lRed"></span><b id="nRed">0</b></div>
+    <div><i></i><span>Not tried</span><b id="nNone">144</b></div>
+  </div>
+  <div class="data">
+    <button id="backup" class="btn-small">Back up</button>
+    <label for="file" class="btn-small">Restore</label>
+    <button id="reset" class="btn-small danger">Reset</button>
+  </div>
+  <input id="file" class="vh" type="file" accept=".json,.txt,application/json,text/plain">
+</section>
+
+<div id="modal" class="modal" hidden>
+  <div class="sheet">
+    <p id="modalText"></p>
+    <div class="row">
+      <button id="modalNo" class="btn">Cancel</button>
+      <button id="modalYes" class="btn"></button>
+    </div>
+  </div>
+</div>
+<div id="levelUp" class="levelup" hidden>
+  <div class="lvl-body" role="alertdialog" aria-labelledby="lvlText">
+    <p id="lvlText" class="lvl-text"></p>
+    <div id="lvlMap" class="lvl-map" aria-hidden="true"></div>
+    <button id="lvlGo" class="btn-go lvl-go">Bring it on</button>
+  </div>
+</div>
+<div id="toast" class="toast" role="status"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- Settings: easy to tweak ---------- */
+  const QUESTIONS = 10;
+  const GREEN_LEVELS = [2500, 2000, 1500]; // ms. Green means faster than this. An all-green map moves up a level
+  const RED_FROM = 5000;         // ms. This or slower is red. In between is amber
+  const ROLLING = 5;             // each square averages its last 5 answers at the current level
+  const WRONG_COUNTS_AS = 5000;  // a wrong answer counts as at least 5 seconds
+  const MAX_COUNTED = 10000;     // one distracted answer counts as at most 10 seconds
+  const KEEP = 20;               // answers stored per sum
+  const REINFORCE = 2;           // green squares mixed into every round to keep them sharp
+  const WEAK_WHILE_FILLING = 3;  // red/amber squares per round while some squares are still untried
+  const BADGES = ['', '😈', '👿'];
+  const LEVEL_UP_MESSAGES = [
+    'Congratulations! Now let’s make it harder 😈',
+    'Still too easy huh… ok then, beat this! 👿'
+  ];
+  const STORE_KEY = 'times-tables-v1';
+
+  const $ = sel => document.querySelector(sel);
+
+  /* ---------- Storage ---------- */
+  // Uses the phone's local storage when deployed. Previews that block storage fall back to memory.
+  const store = (() => {
+    let ls = null, mem = null;
+    try {
+      const probe = '__tt_probe__';
+      window.localStorage.setItem(probe, '1');
+      window.localStorage.removeItem(probe);
+      ls = window.localStorage;
+    } catch (e) { ls = null; }
+    return {
+      persistent: !!ls,
+      load() {
+        try {
+          const raw = ls ? ls.getItem(STORE_KEY) : mem;
+          return raw ? JSON.parse(raw) : null;
+        } catch (e) { return null; }
+      },
+      save(obj) {
+        mem = JSON.stringify(obj);
+        if (ls) { try { ls.setItem(STORE_KEY, mem); } catch (e) { /* storage full or blocked */ } }
+      }
+    };
+  })();
+
+  const blank = () => ({ v: 1, level: 1, facts: {}, sessions: [] });
+  const isNum = x => typeof x === 'number' && isFinite(x);
+  const levelOf = x => (Number.isInteger(x) && x >= 1 && x <= GREEN_LEVELS.length) ? x : 1;
+
+  // Rebuilds data from storage or a backup file, dropping anything malformed
+  function clean(d) {
+    if (!d || typeof d !== 'object' || !d.facts || typeof d.facts !== 'object') return null;
+    const out = blank();
+    out.level = levelOf(d.level);
+    for (let a = 1; a <= 12; a++) {
+      for (let b = 1; b <= 12; b++) {
+        const key = a + 'x' + b;
+        const f = d.facts[key];
+        if (!f || !Array.isArray(f.r)) continue;
+        const r = f.r
+          .filter(x => Array.isArray(x) && isNum(x[0]) && x[0] >= 0)
+          .slice(-KEEP)
+          .map(x => [Math.round(x[0]), x[1] ? 1 : 0, levelOf(x[2])]);
+        if (!r.length) continue;
+        const n = Math.max(isNum(f.n) ? f.n : 0, r.length);
+        const c = Math.min(Math.max(isNum(f.c) ? f.c : 0, 0), n);
+        out.facts[key] = { n, c, r, t: isNum(f.t) ? f.t : 0 };
+      }
+    }
+    if (Array.isArray(d.sessions)) {
+      out.sessions = d.sessions
+        .filter(s => s && isNum(s.d) && isNum(s.s) && isNum(s.ms))
+        .slice(-1000)
+        .map(s => ({ d: s.d, s: s.s, ms: s.ms, l: levelOf(s.l) }));
+    }
+    return out;
+  }
+
+  let data = clean(store.load()) || blank();
+  const save = () => store.save(data);
+
+  /* ---------- Scoring ---------- */
+  const greenUnder = () => GREEN_LEVELS[data.level - 1];
+  const bandOf = ms => ms < greenUnder() ? 'green' : ms < RED_FROM ? 'amber' : 'red';
+
+  // How a square is doing, from its last 5 answers at the current level only
+  function stats(a, b) {
+    const f = data.facts[a + 'x' + b];
+    if (!f || !f.r.length) return { band: 'none' };
+    const recent = f.r.filter(x => x[2] === data.level).slice(-ROLLING);
+    if (!recent.length) return { band: 'amber', fresh: true }; // known from an easier level, not yet won back
+    let total = 0;
+    for (const [ms, ok] of recent) {
+      total += Math.min(ok ? ms : Math.max(ms, WRONG_COUNTS_AS), MAX_COUNTED);
+    }
+    const avg = total / recent.length;
+    return { band: bandOf(avg), avg, tries: recent.length, wrong: recent.filter(x => !x[1]).length };
+  }
+
+  function record(a, b, ms, ok) {
+    const key = a + 'x' + b;
+    const f = data.facts[key] || (data.facts[key] = { n: 0, c: 0, r: [], t: 0 });
+    f.n += 1;
+    if (ok) f.c += 1;
+    f.r.push([Math.round(ms), ok ? 1 : 0, data.level]);
+    if (f.r.length > KEEP) f.r.splice(0, f.r.length - KEEP);
+    f.t = Date.now();
+    save();
+  }
+
+  function tally() {
+    const t = { green: 0, amber: 0, red: 0, none: 0 };
+    for (let a = 1; a <= 12; a++) for (let b = 1; b <= 12; b++) t[stats(a, b).band] += 1;
+    return t;
+  }
+
+  const secs = ms => (ms / 1000).toFixed(1) + 's';
+  const plain = ms => String(ms / 1000);
+  const mapTitle = () => 'Heat map' + (data.level > 1 ? ` <span class="emo">${BADGES[data.level - 1]}</span>` : '');
+
+  /* ---------- Screens ---------- */
+  const SCREENS = ['home', 'play', 'results', 'map'];
+  function show(id) {
+    SCREENS.forEach(s => $('#' + s).classList.toggle('active', s === id));
+    if (id === 'home') renderMini();
+    if (id === 'map') { renderMap(); $('#map').scrollTop = 0; }
+  }
+
+  function renderMini() {
+    let html = '';
+    for (let a = 1; a <= 12; a++) for (let b = 1; b <= 12; b++) html += `<i class="c-${stats(a, b).band}"></i>`;
+    $('#mini').innerHTML = html;
+    $('#miniTitle').innerHTML = mapTitle();
+    const t = tally();
+    $('#miniText').textContent = t.none === 144 ? 'Play a round to start filling it in' : `${t.green} of 144 green`;
+  }
+
+  /* ---------- A round of ten ---------- */
+  const sumEl = $('#sum'), ansEl = $('#answer'), revEl = $('#reveal');
+  const stageEl = $('#stage'), padEl = $('#keypad'), barEl = $('#bar'), countEl = $('#qcount');
+  let game = null;
+
+  // How a round is built:
+  // 1. Two green squares, the ones seen longest ago, to keep known facts sharp.
+  // 2. Red squares, then amber, least recently seen first. Capped at 3 while any
+  //    squares are untried, so the rest of the round keeps filling in the map.
+  // 3. Untried squares, in random order.
+  // 4. If there aren't enough of those, more red/amber, then more green.
+  // The ten are then shuffled so the order gives nothing away.
+  function pickQuestions() {
+    const pools = { green: [], amber: [], red: [], none: [] };
+    for (let a = 1; a <= 12; a++) {
+      for (let b = 1; b <= 12; b++) {
+        const f = data.facts[a + 'x' + b];
+        pools[stats(a, b).band].push({ a, b, seen: f ? f.t : 0, rnd: Math.random() });
+      }
+    }
+    const oldestFirst = (x, y) => (x.seen - y.seen) || (x.rnd - y.rnd);
+    const green = pools.green.sort(oldestFirst);
+    const weak = pools.red.sort(oldestFirst).concat(pools.amber.sort(oldestFirst));
+    const untried = pools.none.sort((x, y) => x.rnd - y.rnd);
+    const picks = [];
+    const take = (list, n) => {
+      while (n > 0 && list.length && picks.length < QUESTIONS) { picks.push(list.shift()); n -= 1; }
+    };
+    take(green, REINFORCE);
+    take(weak, untried.length ? WEAK_WHILE_FILLING : QUESTIONS);
+    take(untried, QUESTIONS);
+    take(weak, QUESTIONS);
+    take(green, QUESTIONS);
+    for (let i = picks.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [picks[i], picks[j]] = [picks[j], picks[i]];
+    }
+    return picks.map(p => [p.a, p.b]);
+  }
+
+  // A timer that is cancelled if the round is stopped
+  function later(fn, ms) {
+    const g = game;
+    if (!g) return;
+    g.timers.push(setTimeout(() => { if (game === g) fn(); }, ms));
+  }
+
+  function startRound() {
+    if (game) return;
+    game = { qs: pickQuestions(), i: 0, typed: '', t0: 0, hiddenAt: 0, results: [], locked: true, timers: [] };
+    barEl.style.width = '0%';
+    countEl.textContent = `1/${QUESTIONS}`;
+    ansEl.textContent = '';
+    ansEl.className = 'answer';
+    revEl.textContent = '';
+    stageEl.classList.add('counting');
+    padEl.classList.add('dim');
+    show('play');
+    countdown(3);
+  }
+
+  function countdown(n) {
+    if (n === 0) {
+      stageEl.classList.remove('counting');
+      padEl.classList.remove('dim');
+      ask();
+      return;
+    }
+    sumEl.className = 'sum';
+    void sumEl.offsetWidth; // restart the pop animation
+    sumEl.className = 'sum count';
+    sumEl.textContent = n;
+    later(() => countdown(n - 1), 700);
+  }
+
+  function ask() {
+    const [a, b] = game.qs[game.i];
+    game.typed = '';
+    sumEl.className = 'sum';
+    sumEl.textContent = `${a} × ${b}`;
+    ansEl.textContent = '';
+    ansEl.className = 'answer';
+    revEl.textContent = '';
+    countEl.textContent = `${game.i + 1}/${QUESTIONS}`;
+    game.locked = false;
+    game.t0 = performance.now();
+    const g = game;
+    // Start the clock when the sum is actually on screen
+    requestAnimationFrame(() => { if (game === g && !g.locked && g.typed === '') g.t0 = performance.now(); });
+  }
+
+  function press(key) {
+    if (!game || game.locked) return;
+    const [a, b] = game.qs[game.i];
+    const correct = String(a * b);
+    if (key === 'del') {
+      game.typed = game.typed.slice(0, -1);
+      ansEl.textContent = game.typed;
+      return;
+    }
+    if (!game.typed && key === '0') return; // no answer starts with 0
+    game.typed += key;
+    ansEl.textContent = game.typed;
+    // Marks itself once the right number of digits is in, so there's no Enter button eating time
+    if (game.typed.length >= correct.length) {
+      submit(game.typed === correct, performance.now() - game.t0, correct);
+    }
+  }
+
+  function submit(ok, ms, correct) {
+    game.locked = true;
+    const [a, b] = game.qs[game.i];
+    game.results.push({ ok, ms });
+    record(a, b, ms, ok);
+    barEl.style.width = ((game.i + 1) / QUESTIONS * 100) + '%';
+    if (ok) {
+      ansEl.className = 'answer ok';
+      later(nextQuestion, 300);
+    } else {
+      ansEl.className = 'answer bad';
+      revEl.textContent = correct;
+      later(nextQuestion, 1500);
+    }
+  }
+
+  function nextQuestion() {
+    game.i += 1;
+    if (game.i < QUESTIONS) ask(); else finishRound();
+  }
+
+  function stopRound() {
+    if (game) game.timers.forEach(clearTimeout);
+    game = null;
+  }
+
+  function quitRound() {
+    stopRound();
+    show('home');
+    checkLevelUp();
+  }
+
+  function finishRound() {
+    const results = game.results;
+    stopRound();
+    const score = results.filter(r => r.ok).length;
+    const total = results.reduce((s, r) => s + r.ms, 0);
+    const avg = total / results.length;
+    data.sessions.push({ d: Date.now(), s: score, ms: Math.round(total), l: data.level });
+    if (data.sessions.length > 1000) data.sessions.splice(0, data.sessions.length - 1000);
+    save();
+    $('#resScore').innerHTML = `${score}<small>/${QUESTIONS}</small>`;
+    $('#resMsg').textContent = cheer(score, avg);
+    $('#resTime').textContent = secs(total);
+    const avgEl = $('#resAvg');
+    avgEl.textContent = secs(avg);
+    avgEl.className = 't-' + bandOf(avg);
+    show('results');
+    checkLevelUp();
+  }
+
+  function cheer(score, avg) {
+    if (score === QUESTIONS && avg < greenUnder()) return 'Perfect, and lightning fast!';
+    if (score === QUESTIONS) return 'Perfect round!';
+    if (score >= 8) return 'Great work!';
+    if (score >= 5) return 'Good effort. Keep going!';
+    return 'Keep practising, you’ll get there!';
+  }
+
+  // Keypad reacts on touch-down rather than release, so timing is as fair as possible
+  padEl.addEventListener('pointerdown', e => {
+    const btn = e.target.closest('button[data-k]');
+    if (!btn) return;
+    e.preventDefault();
+    btn.classList.add('down');
+    setTimeout(() => btn.classList.remove('down'), 120);
+    press(btn.dataset.k);
+  });
+
+  // A keyboard works too, for testing on a computer
+  document.addEventListener('keydown', e => {
+    if (!game) return;
+    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); press(e.key); }
+    else if (e.key === 'Backspace') { e.preventDefault(); press('del'); }
+    else if (e.key === 'Escape') quitRound();
+  });
+
+  // Time spent with the app in the background doesn't count
+  document.addEventListener('visibilitychange', () => {
+    if (!game || game.locked) return;
+    if (document.hidden) game.hiddenAt = performance.now();
+    else if (game.hiddenAt) { game.t0 += performance.now() - game.hiddenAt; game.hiddenAt = 0; }
+  });
+
+  /* ---------- Levels ---------- */
+  // When every square is green, the bar for green drops and every square has to be won back
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let levelTimers = [];
+
+  function checkLevelUp() {
+    if (data.level >= GREEN_LEVELS.length || tally().green !== 144) return;
+    const message = LEVEL_UP_MESSAGES[data.level - 1];
+    data.level += 1;
+    save();
+    showLevelUp(message);
+  }
+
+  function showLevelUp(message) {
+    const textEl = $('#lvlText');
+    const cut = message.lastIndexOf(' ');
+    textEl.textContent = message.slice(0, cut + 1);
+    const emoji = document.createElement('span');
+    emoji.className = 'lvl-emoji';
+    emoji.textContent = message.slice(cut + 1);
+    textEl.appendChild(emoji);
+
+    // The map starts all green, then sweeps across to its colours at the new level
+    const map = $('#lvlMap');
+    let html = '';
+    for (let a = 1; a <= 12; a++) {
+      for (let b = 1; b <= 12; b++) html += `<i class="c-green" style="transition-delay:${(a + b - 2) * 35}ms"></i>`;
+    }
+    map.innerHTML = html;
+    const go = $('#lvlGo');
+    go.classList.remove('ready');
+    $('#levelUp').hidden = false;
+    levelTimers.forEach(clearTimeout);
+    levelTimers = [
+      setTimeout(() => {
+        let i = 0;
+        for (let a = 1; a <= 12; a++) for (let b = 1; b <= 12; b++) map.children[i++].className = 'c-' + stats(a, b).band;
+      }, calm ? 0 : 1300),
+      setTimeout(() => go.classList.add('ready'), calm ? 0 : 2400)
+    ];
+  }
+
+  $('#lvlGo').addEventListener('click', () => {
+    $('#levelUp').hidden = true;
+    if ($('#home').classList.contains('active')) renderMini();
+  });
+
+  /* ---------- Heat map ---------- */
+  const gridEl = $('#grid'), infoEl = $('#info');
+  let selected = null;
+
+  function renderMap() {
+    let html = '<span class="hd corner">×</span>';
+    for (let b = 1; b <= 12; b++) html += `<span class="hd" data-col="${b}">${b}</span>`;
+    for (let a = 1; a <= 12; a++) {
+      html += `<span class="hd" data-row="${a}">${a}</span>`;
+      for (let b = 1; b <= 12; b++) {
+        html += `<button class="sq c-${stats(a, b).band}" data-a="${a}" data-b="${b}" aria-label="${a} times ${b}"></button>`;
+      }
+    }
+    gridEl.innerHTML = html;
+    $('#mapTitle').innerHTML = mapTitle();
+    $('#lGreen').textContent = `Under ${plain(greenUnder())}s`;
+    $('#lAmber').textContent = `${plain(greenUnder())} to ${plain(RED_FROM)}s`;
+    $('#lRed').textContent = `${plain(RED_FROM)}s or more`;
+    const t = tally();
+    $('#nGreen').textContent = t.green;
+    $('#nAmber').textContent = t.amber;
+    $('#nRed').textContent = t.red;
+    $('#nNone').textContent = t.none;
+    if (selected) selectSquare(selected[0], selected[1]);
+    else infoEl.textContent = 'Tap a square to see its average time.';
+  }
+
+  function selectSquare(a, b) {
+    selected = [a, b];
+    gridEl.querySelectorAll('.sel').forEach(x => x.classList.remove('sel'));
+    gridEl.querySelectorAll('.on').forEach(x => x.classList.remove('on'));
+    gridEl.querySelector(`.sq[data-a="${a}"][data-b="${b}"]`).classList.add('sel');
+    gridEl.querySelector(`[data-row="${a}"]`).classList.add('on');
+    gridEl.querySelector(`[data-col="${b}"]`).classList.add('on');
+    const s = stats(a, b);
+    if (s.band === 'none') { infoEl.innerHTML = `<b>${a} × ${b}</b> hasn’t come up yet.`; return; }
+    if (s.fresh) {
+      infoEl.innerHTML = `<b>${a} × ${b}</b> hasn’t come up at this level yet. Under ${plain(greenUnder())}s turns it green.`;
+      return;
+    }
+    const over = s.tries === 1 ? 'from 1 try' : `over the last ${s.tries} tries`;
+    const wrongText = s.wrong ? `, with ${s.wrong} wrong` : '';
+    infoEl.innerHTML = `<b>${a} × ${b}</b> averages <b class="t-${s.band}">${secs(s.avg)}</b> ${over}${wrongText}.`;
+  }
+
+  gridEl.addEventListener('click', e => {
+    const sq = e.target.closest('.sq');
+    if (sq) selectSquare(+sq.dataset.a, +sq.dataset.b);
+  });
+
+  /* ---------- Back up, restore, reset ---------- */
+  function backup() {
+    const payload = JSON.stringify({ app: 'times-tables', saved: new Date().toISOString(), data });
+    const name = `times-tables-backup-${new Date().toISOString().slice(0, 10)}`;
+    const files = [
+      new File([payload], name + '.json', { type: 'application/json' }),
+      new File([payload], name + '.txt', { type: 'text/plain' })
+    ];
+    // Prefer the phone's share sheet (Save to Files, AirDrop, email); fall back to a download
+    if (navigator.share && navigator.canShare) {
+      for (const file of files) {
+        let ok = false;
+        try { ok = navigator.canShare({ files: [file] }); } catch (e) { ok = false; }
+        if (ok) {
+          navigator.share({ files: [file], title: 'Times Tables backup' })
+            .catch(err => { if (!err || err.name !== 'AbortError') download(payload, name + '.json'); });
+          return;
+        }
+      }
+    }
+    download(payload, name + '.json');
+  }
+
+  function download(text, filename) {
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      toast('Backup downloaded');
+    } catch (e) {
+      toast('Back up works once the app is installed');
+    }
+  }
+
+  const readText = file => file.text ? file.text() : new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsText(file);
+  });
+
+  $('#file').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    let parsed = null;
+    try { parsed = JSON.parse(await readText(file)); } catch (err) { parsed = null; }
+    const incoming = parsed && parsed.app === 'times-tables' ? clean(parsed.data) : null;
+    if (!incoming) { toast('Choose a times-tables-backup file'); return; }
+    const when = new Date(parsed.saved);
+    const which = isNaN(when) ? 'this backup' : 'the backup from ' + when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const tried = Object.keys(incoming.facts).length;
+    confirmBox(`Restore ${which}? It has ${tried} of 144 sums tried and replaces the progress on this phone.`, 'Restore', false, () => {
+      data = incoming;
+      save();
+      selected = null;
+      renderMap();
+      toast('Progress restored');
+    });
+  });
+
+  $('#backup').addEventListener('click', backup);
+  $('#reset').addEventListener('click', () => {
+    confirmBox('Reset all progress on this phone? A backup is the only way to get it back.', 'Reset', true, () => {
+      data = blank();
+      save();
+      selected = null;
+      renderMap();
+      toast('Progress reset');
+    });
+  });
+
+  /* ---------- Confirm sheet and toast ---------- */
+  const modal = $('#modal'), modalYes = $('#modalYes');
+  let onYes = null;
+  function confirmBox(text, yesLabel, danger, fn) {
+    $('#modalText').textContent = text;
+    modalYes.textContent = yesLabel;
+    modalYes.className = 'btn ' + (danger ? 'btn-danger' : 'btn-ok');
+    onYes = fn;
+    modal.hidden = false;
+  }
+  modalYes.addEventListener('click', () => { modal.hidden = true; const fn = onYes; onYes = null; if (fn) fn(); });
+  $('#modalNo').addEventListener('click', () => { modal.hidden = true; onYes = null; });
+  modal.addEventListener('click', e => { if (e.target === modal) { modal.hidden = true; onYes = null; } });
+
+  let toastTimer = null;
+  function toast(msg) {
+    const el = $('#toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+
+  /* ---------- Wire up ---------- */
+  $('#go').addEventListener('click', startRound);
+  $('#again').addEventListener('click', startRound);
+  $('#openMap').addEventListener('click', () => show('map'));
+  $('#resMap').addEventListener('click', () => show('map'));
+  $('#resHome').addEventListener('click', () => show('home'));
+  $('#mapBack').addEventListener('click', () => show('home'));
+  $('#quit').addEventListener('click', quitRound);
+
+  if (!store.persistent) $('#note').hidden = false;
+
+  // Offline support and full-screen launch once it's on the home screen
+  try {
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+    const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (installed && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  } catch (e) { /* not available in previews */ }
+
+  show('home');
+})();
+</script>
+</body>
+</html>
