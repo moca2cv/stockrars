@@ -104,6 +104,11 @@
   .answer.bad { color: var(--red); text-decoration: line-through; text-decoration-thickness: .07em; }
   .reveal { font-size: clamp(30px, min(11vw, 6.5vh), 60px); font-weight: 800; color: var(--green); line-height: 1.2; min-height: 1.2em; margin-top: .5vh; }
   .stage.counting .answer, .stage.counting .reveal { visibility: hidden; }
+  .intro-text, .intro-hint { display: none; text-align: center; }
+  .intro-text { font-family: var(--sans); font-size: clamp(18px, 5.2vw, 22px); font-weight: 600; line-height: 1.4; max-width: 330px; margin-top: 3vh; text-wrap: balance; }
+  .intro-hint { color: var(--muted); font-size: 14px; margin-top: 3vh; }
+  .stage.intro .answer, .stage.intro .reveal { display: none; }
+  .stage.intro .intro-text, .stage.intro .intro-hint { display: block; }
   .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; flex: none; transition: opacity .2s ease; }
   .keypad.dim { opacity: .3; }
   .keypad button {
@@ -159,27 +164,43 @@
   .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
 
   /* Confirm sheet and toast */
-  .modal { position: fixed; inset: 0; z-index: 10; background: rgba(0, 0, 0, .7); display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); animation: fade .15s ease-out; }
+  .modal { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .7); display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); animation: fade .15s ease-out; }
   .sheet { width: 100%; max-width: 440px; background: var(--card); border-radius: 24px; padding: 24px 18px 18px; }
   .sheet p { font-size: 17px; line-height: 1.4; text-align: center; margin-bottom: 20px; }
-  .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); z-index: 20; transform: translate(-50%, 16px); background: #2c2c2e; padding: 12px 18px; border-radius: 22px; font-size: 15px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+  .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); z-index: 50; transform: translate(-50%, 16px); background: #2c2c2e; padding: 12px 18px; border-radius: 22px; font-size: 15px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
   /* Level up */
   .levelup { position: fixed; inset: 0; z-index: 30; background: var(--bg); display: flex; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); animation: fade .25s ease-out; }
-  .lvl-body { width: 100%; max-width: 440px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4vh; text-align: center; }
-  .lvl-text { font-family: var(--round); font-size: clamp(26px, 7.5vw, 34px); font-weight: 800; line-height: 1.25; text-wrap: balance; }
+  .lvl-body { width: 100%; max-width: 440px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.6vh; text-align: center; }
+  .lvl-text { font-family: var(--round); font-size: clamp(24px, min(7.5vw, 4.2vh), 34px); font-weight: 800; line-height: 1.25; text-wrap: balance; }
   .lvl-emoji, .emo { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-weight: 400; }
-  .lvl-emoji { display: block; font-size: clamp(100px, 32vw, 150px); line-height: 1.1; margin-top: 2vh; animation: devil .9s cubic-bezier(.2, 1.4, .4, 1) .35s both; }
+  .lvl-emoji { display: block; font-size: clamp(72px, min(30vw, 15vh), 150px); line-height: 1.1; margin-top: 1vh; animation: devil .9s cubic-bezier(.2, 1.4, .4, 1) .35s both; }
   @keyframes devil {
     0% { transform: scale(0) rotate(-30deg); opacity: 0; }
     60% { transform: scale(1.15) rotate(12deg); opacity: 1; }
     100% { transform: scale(1) rotate(0); opacity: 1; }
   }
-  .lvl-map { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; width: min(64vw, 240px); }
+  .lvl-map { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; width: min(58vw, 25vh, 230px); }
   .lvl-map i { aspect-ratio: 1; border-radius: 3px; background: var(--empty); transition: background-color .45s ease; }
-  .lvl-go { width: 100%; opacity: 0; pointer-events: none; transition: opacity .3s ease, transform .1s; }
-  .lvl-go.ready { opacity: 1; pointer-events: auto; }
+  .lvl-actions { width: 100%; display: flex; flex-direction: column; gap: 10px; opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+  .lvl-actions.ready { opacity: 1; pointer-events: auto; }
+  .lvl-actions .btn { flex: none; }
+  .lvl-next { font-size: clamp(15px, 4.3vw, 17px); font-weight: 600; line-height: 1.4; text-wrap: balance; }
+  .lvl-next span { display: block; color: var(--muted); font-weight: 400; margin-top: 6px; }
+
+  /* Level and goal */
+  .goal { text-align: center; margin-bottom: 14px; flex: none; }
+  .stars { font-size: 30px; line-height: 1; letter-spacing: 4px; color: var(--card-down); }
+  .stars .on { color: #ffd60a; }
+  .goal-bar { height: 8px; border-radius: 4px; background: var(--card); overflow: hidden; }
+  .goal-bar i { display: block; height: 100%; background: var(--green); border-radius: 4px; }
+  .goal-text { color: var(--muted); font-size: 14px; line-height: 1.4; margin-top: 8px; text-wrap: balance; }
+  .goal-text b, .map-goal b { color: var(--fg); }
+  .goal-star { font-family: var(--round); font-size: 20px; font-weight: 800; }
+  .warn { color: var(--red); }
+  .map-goal { text-align: center; color: var(--muted); font-size: 14px; line-height: 1.4; margin: 0 0 12px; text-wrap: balance; }
+  .sum.long { font-size: clamp(44px, min(16vw, 9vh), 96px); }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -191,9 +212,10 @@
 <section id="home" class="screen">
   <header class="home-head">
     <h1>Times Tables</h1>
-    <p>Ten quick sums, from 1 × 1 to 12 × 12</p>
+    <p id="levelLine"></p>
   </header>
   <div class="go-wrap"><button id="go" class="go">GO</button></div>
+  <div id="goal" class="goal"></div>
   <button id="openMap" class="map-card">
     <div id="mini" class="mini" aria-hidden="true"></div>
     <div class="map-text"><b id="miniTitle">Heat map</b><span id="miniText"></span></div>
@@ -212,6 +234,8 @@
     <div id="sum" class="sum"></div>
     <div id="answer" class="answer"></div>
     <div id="reveal" class="reveal"></div>
+    <p id="introText" class="intro-text"></p>
+    <p class="intro-hint">Tap to continue</p>
   </div>
   <div id="keypad" class="keypad">
     <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
@@ -247,6 +271,7 @@
   </div>
   <div id="grid" class="grid"></div>
   <p id="info" class="info"></p>
+  <p id="mapGoal" class="map-goal"></p>
   <div class="legend">
     <div><i class="c-green"></i><span id="lGreen"></span><b id="nGreen">0</b></div>
     <div><i class="c-amber"></i><span id="lAmber"></span><b id="nAmber">0</b></div>
@@ -274,7 +299,12 @@
   <div class="lvl-body" role="alertdialog" aria-labelledby="lvlText">
     <p id="lvlText" class="lvl-text"></p>
     <div id="lvlMap" class="lvl-map" aria-hidden="true"></div>
-    <button id="lvlGo" class="btn-go lvl-go">Bring it on</button>
+    <p id="lvlNext" class="lvl-next"></p>
+    <div id="lvlActions" class="lvl-actions">
+      <button id="lvlGo" class="btn-go">Bring it on</button>
+      <button id="keepPlaying" class="btn-go" hidden>Keep playing</button>
+      <button id="startAgain" class="btn" hidden>Start again</button>
+    </div>
   </div>
 </div>
 <div id="toast" class="toast" role="status"></div>
@@ -285,19 +315,38 @@
 
   /* ---------- Settings: easy to tweak ---------- */
   const QUESTIONS = 10;
-  const GREEN_LEVELS = [2500, 2000, 1500]; // ms. Green means faster than this. An all-green map moves up a level
-  const RED_FROM = 5000;         // ms. This or slower is red. In between is amber
+  // Each level: green under / red from (ms), whether division is mixed in, and what it takes to move on:
+  // either perfect rounds (stars), or a % of the map green with no red or untried squares
+  const LEVELS = [
+    { green: 4000, red: 8000, division: false, stars: 5 },
+    { green: 4000, red: 8000, division: true, stars: 5 },
+    { green: 2500, red: 5000, division: false, pct: 75 },
+    { green: 2500, red: 5000, division: true, pct: 100 },
+    { green: 2000, red: 4000, division: true, pct: 90 },
+    { green: 1500, red: 3000, division: true, pct: 75 }
+  ];
+  const LEVEL_UP_MESSAGES = {
+    2: 'Smashed it! Now try them backwards ➗',
+    3: 'Congratulations! Now let’s make it harder 😈',
+    4: 'Division’s back, and this time it’s fast ⚡',
+    5: 'Getting scary good… faster! 🔥',
+    6: 'Still too easy huh… ok then, beat this! 👿'
+  };
+  const SUPERSTAR_MESSAGE = 'You’re a maths superstar! 🌟';
+  // What changes at each level, shown under the level-up message
+  const WHATS_NEW = {
+    2: 'Division joins in, at the same speeds:',
+    3: 'Just times tables, but faster:',
+    4: 'Division’s back, at the same speeds:',
+    5: 'Faster again:',
+    6: 'The last level:'
+  };
   const ROLLING = 5;             // each square averages its last 5 answers at the current level
-  const WRONG_COUNTS_AS = 5000;  // a wrong answer counts as at least 5 seconds
   const MAX_COUNTED = 10000;     // one distracted answer counts as at most 10 seconds
-  const KEEP = 20;               // answers stored per sum
+  const KEEP = 20;               // answers stored per square
+  const REPEATS = 5;             // levels 1 and 2: squares she's struggling with that come back each round
   const REINFORCE = 2;           // green squares mixed into every round to keep them sharp
   const WEAK_WHILE_FILLING = 3;  // red/amber squares per round while some squares are still untried
-  const BADGES = ['', '😈', '👿'];
-  const LEVEL_UP_MESSAGES = [
-    'Congratulations! Now let’s make it harder 😈',
-    'Still too easy huh… ok then, beat this! 👿'
-  ];
   const STORE_KEY = 'times-tables-v1';
 
   const $ = sel => document.querySelector(sel);
@@ -327,15 +376,22 @@
     };
   })();
 
-  const blank = () => ({ v: 1, level: 1, facts: {}, sessions: [] });
+  const blank = () => ({ v: 2, level: 1, stars: 0, superstar: false, seenIntro: false, facts: {}, sessions: [] });
   const isNum = x => typeof x === 'number' && isFinite(x);
-  const levelOf = x => (Number.isInteger(x) && x >= 1 && x <= GREEN_LEVELS.length) ? x : 1;
+  const levelOf = x => (Number.isInteger(x) && x >= 1 && x <= LEVELS.length) ? x : 1;
 
-  // Rebuilds data from storage or a backup file, dropping anything malformed
+  // Rebuilds data from storage or a backup file, dropping anything malformed.
+  // Data from the first version (different levels) carries over into Level 1.
   function clean(d) {
     if (!d || typeof d !== 'object' || !d.facts || typeof d.facts !== 'object') return null;
+    const legacy = d.v !== 2;
     const out = blank();
-    out.level = levelOf(d.level);
+    if (!legacy) {
+      out.level = levelOf(d.level);
+      out.stars = isNum(d.stars) ? Math.max(0, Math.min(Math.floor(d.stars), 99)) : 0;
+      out.superstar = d.superstar === true;
+      out.seenIntro = d.seenIntro === true;
+    }
     for (let a = 1; a <= 12; a++) {
       for (let b = 1; b <= 12; b++) {
         const key = a + 'x' + b;
@@ -344,7 +400,7 @@
         const r = f.r
           .filter(x => Array.isArray(x) && isNum(x[0]) && x[0] >= 0)
           .slice(-KEEP)
-          .map(x => [Math.round(x[0]), x[1] ? 1 : 0, levelOf(x[2])]);
+          .map(x => [Math.round(x[0]), x[1] ? 1 : 0, legacy ? 1 : levelOf(x[2]), x[3] ? 1 : 0]);
         if (!r.length) continue;
         const n = Math.max(isNum(f.n) ? f.n : 0, r.length);
         const c = Math.min(Math.max(isNum(f.c) ? f.c : 0, 0), n);
@@ -355,7 +411,7 @@
       out.sessions = d.sessions
         .filter(s => s && isNum(s.d) && isNum(s.s) && isNum(s.ms))
         .slice(-1000)
-        .map(s => ({ d: s.d, s: s.s, ms: s.ms, l: levelOf(s.l) }));
+        .map(s => ({ d: s.d, s: s.s, ms: s.ms, l: legacy ? 1 : levelOf(s.l), p: s.p ? 1 : 0 }));
     }
     return out;
   }
@@ -364,59 +420,114 @@
   const save = () => store.save(data);
 
   /* ---------- Scoring ---------- */
-  const greenUnder = () => GREEN_LEVELS[data.level - 1];
-  const bandOf = ms => ms < greenUnder() ? 'green' : ms < RED_FROM ? 'amber' : 'red';
+  const lvl = () => LEVELS[data.level - 1];
+  const bandOf = ms => ms < lvl().green ? 'green' : ms < lvl().red ? 'amber' : 'red';
 
   // How a square is doing, from its last 5 answers at the current level only
   function stats(a, b) {
     const f = data.facts[a + 'x' + b];
     if (!f || !f.r.length) return { band: 'none' };
     const recent = f.r.filter(x => x[2] === data.level).slice(-ROLLING);
-    if (!recent.length) return { band: 'amber', fresh: true }; // known from an easier level, not yet won back
+    if (!recent.length) return { band: 'amber', fresh: true }; // known from an earlier level, not yet won back
     let total = 0;
     for (const [ms, ok] of recent) {
-      total += Math.min(ok ? ms : Math.max(ms, WRONG_COUNTS_AS), MAX_COUNTED);
+      total += Math.min(ok ? ms : Math.max(ms, lvl().red), MAX_COUNTED); // a wrong answer counts as red
     }
     const avg = total / recent.length;
     return { band: bandOf(avg), avg, tries: recent.length, wrong: recent.filter(x => !x[1]).length };
   }
 
-  function record(a, b, ms, ok) {
-    const key = a + 'x' + b;
+  function record(q, ms, ok) {
+    const key = q.a + 'x' + q.b;
     const f = data.facts[key] || (data.facts[key] = { n: 0, c: 0, r: [], t: 0 });
     f.n += 1;
     if (ok) f.c += 1;
-    f.r.push([Math.round(ms), ok ? 1 : 0, data.level]);
+    f.r.push([Math.round(ms), ok ? 1 : 0, data.level, q.div ? 1 : 0]);
     if (f.r.length > KEEP) f.r.splice(0, f.r.length - KEEP);
     f.t = Date.now();
     save();
   }
 
+  function bandsNow() {
+    const out = [];
+    for (let a = 1; a <= 12; a++) for (let b = 1; b <= 12; b++) out.push(stats(a, b).band);
+    return out;
+  }
+
   function tally() {
     const t = { green: 0, amber: 0, red: 0, none: 0 };
-    for (let a = 1; a <= 12; a++) for (let b = 1; b <= 12; b++) t[stats(a, b).band] += 1;
+    bandsNow().forEach(band => { t[band] += 1; });
     return t;
   }
 
   const secs = ms => (ms / 1000).toFixed(1) + 's';
   const plain = ms => String(ms / 1000);
-  const mapTitle = () => 'Heat map' + (data.level > 1 ? ` <span class="emo">${BADGES[data.level - 1]}</span>` : '');
+  const emo = s => `<span class="emo">${s}</span>`;
+
+  /* ---------- Levels ---------- */
+  const greenNeeded = () => Math.ceil(144 * lvl().pct / 100);
+
+  function goalMet() {
+    const L = lvl();
+    if (L.stars) return data.stars >= L.stars;
+    const t = tally();
+    return t.green >= greenNeeded() && t.red === 0 && t.none === 0;
+  }
+
+  function levelLine() {
+    const L = lvl();
+    return `Level ${data.level} of ${LEVELS.length}: ${L.division ? 'times tables and division' : 'times tables'}, green under ${plain(L.green)}s`;
+  }
+
+  // What it takes to reach the next level, as a sentence (and a progress figure for the home screen)
+  function goalParts() {
+    const L = lvl();
+    if (data.superstar) return { text: 'Every level beaten. Keep the map green!' };
+    if (L.stars) {
+      const got = Math.min(data.stars, L.stars);
+      return { stars: got, text: `<b>${got} of ${L.stars}</b> perfect rounds to level up. All ten green earns a star.` };
+    }
+    const t = tally(), need = greenNeeded();
+    let text = `<b>${Math.min(t.green, need)} of ${need}</b> green to level up.`;
+    if (t.red) text += ` <span class="warn">No reds allowed: ${t.red} to clear.</span>`;
+    if (t.none) text += ` ${t.none} ${t.none === 1 ? 'square' : 'squares'} still to try.`;
+    return { bar: Math.min(1, t.green / need), text };
+  }
+
+  // How to reach the next level, in a sentence
+  function goalSentence() {
+    const L = lvl();
+    const next = data.level < LEVELS.length ? `progress to Level ${data.level + 1}` : 'become a maths superstar';
+    if (L.stars) return `Complete ${L.stars} perfect rounds (all ten green) to ${next}.`;
+    if (L.pct === 100) return `Turn your whole heat map green to ${next}.`;
+    return `Turn ${L.pct}% of your heat map green, with no reds, to ${next}.`;
+  }
 
   /* ---------- Screens ---------- */
   const SCREENS = ['home', 'play', 'results', 'map'];
   function show(id) {
     SCREENS.forEach(s => $('#' + s).classList.toggle('active', s === id));
-    if (id === 'home') renderMini();
+    if (id === 'home') renderHome();
     if (id === 'map') { renderMap(); $('#map').scrollTop = 0; }
   }
 
-  function renderMini() {
+  function renderHome() {
+    $('#levelLine').textContent = levelLine();
+    const g = goalParts();
+    let visual = '';
+    if (data.superstar) visual = `<p class="goal-star">Maths superstar ${emo('🌟')}</p>`;
+    else if (g.stars !== undefined) {
+      let row = '';
+      for (let i = 0; i < lvl().stars; i++) row += `<span class="${i < g.stars ? 'on' : ''}">★</span>`;
+      visual = `<div class="stars" aria-hidden="true">${row}</div>`;
+    } else visual = `<div class="goal-bar"><i style="width:${Math.round(g.bar * 100)}%"></i></div>`;
+    $('#goal').innerHTML = `${visual}<p class="goal-text">${g.text}</p>`;
+
     let html = '';
-    for (let a = 1; a <= 12; a++) for (let b = 1; b <= 12; b++) html += `<i class="c-${stats(a, b).band}"></i>`;
+    bandsNow().forEach(band => { html += `<i class="c-${band}"></i>`; });
     $('#mini').innerHTML = html;
-    $('#miniTitle').innerHTML = mapTitle();
     const t = tally();
-    $('#miniText').textContent = t.none === 144 ? 'Play a round to start filling it in' : `${t.green} of 144 green`;
+    $('#miniText').textContent = t.none === 144 ? 'Play a round to start filling it in' : `${t.green} green, ${t.amber} amber, ${t.red} red`;
   }
 
   /* ---------- A round of ten ---------- */
@@ -424,25 +535,54 @@
   const stageEl = $('#stage'), padEl = $('#keypad'), barEl = $('#bar'), countEl = $('#qcount');
   let game = null;
 
-  // How a round is built:
-  // 1. Two green squares, the ones seen longest ago, to keep known facts sharp.
-  // 2. Red squares, then amber, least recently seen first. Capped at 3 while any
-  //    squares are untried, so the rest of the round keeps filling in the map.
-  // 3. Untried squares, in random order.
-  // 4. If there aren't enough of those, more red/amber, then more green.
-  // The ten are then shuffled so the order gives nothing away.
+  const shuffle = list => {
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+    return list;
+  };
+
+  // How a round is built.
+  // Levels 1 and 2 (stars): up to 5 repeats of squares she's been slow or wrong on at this
+  // level, reds first, then the rest at random. Repeats keep coming back until they're green.
+  // Levels 3 to 6 (map): two green squares to keep them sharp, then red and amber squares
+  // (capped at 3 while any squares are untried, so the map keeps filling), then untried ones.
+  // In division levels, half the ten are division, and a repeat comes back in the form she
+  // struggled with, so a slow 63 ÷ 9 returns as 63 ÷ 9. Division counts towards 7 × 9.
   function pickQuestions() {
-    const pools = { green: [], amber: [], red: [], none: [] };
+    const squares = [];
     for (let a = 1; a <= 12; a++) {
       for (let b = 1; b <= 12; b++) {
         const f = data.facts[a + 'x' + b];
-        pools[stats(a, b).band].push({ a, b, seen: f ? f.t : 0, rnd: Math.random() });
+        const s = stats(a, b);
+        squares.push({ a, b, band: s.band, fresh: !!s.fresh, seen: f ? f.t : 0, rnd: Math.random() });
       }
     }
-    const oldestFirst = (x, y) => (x.seen - y.seen) || (x.rnd - y.rnd);
-    const green = pools.green.sort(oldestFirst);
-    const weak = pools.red.sort(oldestFirst).concat(pools.amber.sort(oldestFirst));
-    const untried = pools.none.sort((x, y) => x.rnd - y.rnd);
+    const picks = shuffle(lvl().stars ? pickForStars(squares) : pickForMap(squares));
+    return withForms(picks).map(p => ({
+      a: p.a, b: p.b, div: p.div,
+      text: p.div ? `${p.a * p.b} ÷ ${p.b}` : `${p.a} × ${p.b}`,
+      ans: String(p.div ? p.a : p.a * p.b)
+    }));
+  }
+
+  // Squares she's actually been slow or wrong on at this level (not ones carried over from an earlier level)
+  const isWeak = s => (s.band === 'red' || s.band === 'amber') && !s.fresh;
+  const byRandom = (x, y) => x.rnd - y.rnd;
+  const oldestFirst = (x, y) => (x.seen - y.seen) || (x.rnd - y.rnd);
+  const redsFirst = (x, y) => ((x.band === 'red' ? 0 : 1) - (y.band === 'red' ? 0 : 1)) || oldestFirst(x, y);
+
+  function pickForStars(squares) {
+    const repeats = squares.filter(isWeak).sort(redsFirst).slice(0, REPEATS);
+    const rest = squares.filter(s => !repeats.includes(s)).sort(byRandom);
+    return repeats.concat(rest.slice(0, QUESTIONS - repeats.length));
+  }
+
+  function pickForMap(squares) {
+    const green = squares.filter(s => s.band === 'green').sort(oldestFirst);
+    const weak = squares.filter(s => s.band === 'red' || s.band === 'amber').sort(redsFirst);
+    const untried = squares.filter(s => s.band === 'none').sort(byRandom);
     const picks = [];
     const take = (list, n) => {
       while (n > 0 && list.length && picks.length < QUESTIONS) { picks.push(list.shift()); n -= 1; }
@@ -452,11 +592,30 @@
     take(untried, QUESTIONS);
     take(weak, QUESTIONS);
     take(green, QUESTIONS);
-    for (let i = picks.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [picks[i], picks[j]] = [picks[j], picks[i]];
+    return picks;
+  }
+
+  // The form of her latest slow or wrong answer on a square: division (true) or multiplication (false)
+  function weakForm(a, b) {
+    const f = data.facts[a + 'x' + b];
+    const recent = f ? f.r.filter(x => x[2] === data.level).slice(-ROLLING) : [];
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const [ms, ok, , op] = recent[i];
+      if (!ok || ms >= lvl().green) return op === 1;
     }
-    return picks.map(p => [p.a, p.b]);
+    return null;
+  }
+
+  // Decides which sums are asked as division: repeats keep their form, the rest make it up to half
+  function withForms(picks) {
+    if (!lvl().division) return picks.map(p => ({ ...p, div: false }));
+    const forms = picks.map(p => isWeak(p) ? weakForm(p.a, p.b) : null);
+    let divsLeft = Math.max(0, Math.ceil(picks.length / 2) - forms.filter(f => f === true).length);
+    shuffle(forms.map((f, i) => f === null ? i : -1).filter(i => i >= 0)).forEach(i => {
+      forms[i] = divsLeft > 0;
+      if (divsLeft > 0) divsLeft -= 1;
+    });
+    return picks.map((p, i) => ({ ...p, div: forms[i] === true }));
   }
 
   // A timer that is cancelled if the round is stopped
@@ -468,16 +627,17 @@
 
   function startRound() {
     if (game) return;
-    game = { qs: pickQuestions(), i: 0, typed: '', t0: 0, hiddenAt: 0, results: [], locked: true, timers: [] };
+    game = { qs: pickQuestions(), i: 0, typed: '', t0: 0, hiddenAt: 0, results: [], locked: true, timers: [], intro: null };
     barEl.style.width = '0%';
     countEl.textContent = `1/${QUESTIONS}`;
     ansEl.textContent = '';
     ansEl.className = 'answer';
     revEl.textContent = '';
+    stageEl.classList.remove('intro');
     stageEl.classList.add('counting');
     padEl.classList.add('dim');
     show('play');
-    countdown(3);
+    if (data.seenIntro) countdown(3); else introStep(0);
   }
 
   function countdown(n) {
@@ -494,11 +654,51 @@
     later(() => countdown(n - 1), 700);
   }
 
-  function ask() {
-    const [a, b] = game.qs[game.i];
-    game.typed = '';
+  // First time only: the countdown doubles as how to play, one tap per step
+  function introLines() {
+    const L = lvl();
+    const g = plain(L.green), r = plain(L.red);
+    return [
+      `Answer these ${L.division ? 'times tables and division' : 'times tables'} sums within ${g} seconds to get a green square on your heat map.`,
+      `If you take between ${g} and ${r} seconds, it goes amber. Over ${r} seconds it’s red.`,
+      goalSentence()
+    ];
+  }
+
+  let introAt = 0;
+  function introStep(step) {
+    const lines = introLines();
+    introAt = performance.now();
     sumEl.className = 'sum';
-    sumEl.textContent = `${a} × ${b}`;
+    void sumEl.offsetWidth; // restart the pop animation
+    sumEl.className = 'sum count';
+    if (step < lines.length) {
+      game.intro = step;
+      stageEl.classList.add('intro');
+      sumEl.textContent = String(lines.length - step);
+      $('#introText').textContent = lines[step];
+      return;
+    }
+    game.intro = null;
+    stageEl.classList.remove('intro');
+    sumEl.textContent = 'GO!';
+    data.seenIntro = true;
+    save();
+    padEl.classList.remove('dim');
+    later(() => { stageEl.classList.remove('counting'); ask(); }, 700);
+  }
+
+  $('#play').addEventListener('click', e => {
+    if (!game || game.intro === null || e.target.closest('#quit')) return;
+    if (performance.now() - introAt < 350) return; // a quick double tap shouldn't skip a step
+    introStep(game.intro + 1);
+  });
+
+  function ask() {
+    const q = game.qs[game.i];
+    game.typed = '';
+    sumEl.className = q.text.length > 7 ? 'sum long' : 'sum';
+    sumEl.textContent = q.text;
     ansEl.textContent = '';
     ansEl.className = 'answer';
     revEl.textContent = '';
@@ -512,8 +712,7 @@
 
   function press(key) {
     if (!game || game.locked) return;
-    const [a, b] = game.qs[game.i];
-    const correct = String(a * b);
+    const q = game.qs[game.i];
     if (key === 'del') {
       game.typed = game.typed.slice(0, -1);
       ansEl.textContent = game.typed;
@@ -523,23 +722,21 @@
     game.typed += key;
     ansEl.textContent = game.typed;
     // Marks itself once the right number of digits is in, so there's no Enter button eating time
-    if (game.typed.length >= correct.length) {
-      submit(game.typed === correct, performance.now() - game.t0, correct);
-    }
+    if (game.typed.length >= q.ans.length) submit(game.typed === q.ans, performance.now() - game.t0);
   }
 
-  function submit(ok, ms, correct) {
+  function submit(ok, ms) {
     game.locked = true;
-    const [a, b] = game.qs[game.i];
+    const q = game.qs[game.i];
     game.results.push({ ok, ms });
-    record(a, b, ms, ok);
+    record(q, ms, ok);
     barEl.style.width = ((game.i + 1) / QUESTIONS * 100) + '%';
     if (ok) {
       ansEl.className = 'answer ok';
       later(nextQuestion, 300);
     } else {
       ansEl.className = 'answer bad';
-      revEl.textContent = correct;
+      revEl.textContent = q.ans;
       later(nextQuestion, 1500);
     }
   }
@@ -557,30 +754,35 @@
   function quitRound() {
     stopRound();
     show('home');
-    checkLevelUp();
+    checkProgress();
   }
 
   function finishRound() {
     const results = game.results;
     stopRound();
+    const L = lvl();
     const score = results.filter(r => r.ok).length;
     const total = results.reduce((s, r) => s + r.ms, 0);
     const avg = total / results.length;
-    data.sessions.push({ d: Date.now(), s: score, ms: Math.round(total), l: data.level });
+    const perfect = results.length === QUESTIONS && results.every(r => r.ok && r.ms < L.green);
+    if (L.stars && perfect && !data.superstar) data.stars += 1;
+    data.sessions.push({ d: Date.now(), s: score, ms: Math.round(total), l: data.level, p: perfect ? 1 : 0 });
     if (data.sessions.length > 1000) data.sessions.splice(0, data.sessions.length - 1000);
     save();
     $('#resScore').innerHTML = `${score}<small>/${QUESTIONS}</small>`;
-    $('#resMsg').textContent = cheer(score, avg);
+    $('#resMsg').innerHTML = L.stars && perfect
+      ? `Perfect round! ${emo('⭐')} ${Math.min(data.stars, L.stars)} of ${L.stars}`
+      : cheer(score, avg);
     $('#resTime').textContent = secs(total);
     const avgEl = $('#resAvg');
     avgEl.textContent = secs(avg);
     avgEl.className = 't-' + bandOf(avg);
     show('results');
-    checkLevelUp();
+    checkProgress();
   }
 
   function cheer(score, avg) {
-    if (score === QUESTIONS && avg < greenUnder()) return 'Perfect, and lightning fast!';
+    if (score === QUESTIONS && avg < lvl().green) return 'Perfect, and lightning fast!';
     if (score === QUESTIONS) return 'Perfect round!';
     if (score >= 8) return 'Great work!';
     if (score >= 5) return 'Good effort. Keep going!';
@@ -612,20 +814,28 @@
     else if (game.hiddenAt) { game.t0 += performance.now() - game.hiddenAt; game.hiddenAt = 0; }
   });
 
-  /* ---------- Levels ---------- */
-  // When every square is green, the bar for green drops and every square has to be won back
+  /* ---------- Levelling up ---------- */
   const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let levelTimers = [];
+  let celebrationTimers = [];
 
-  function checkLevelUp() {
-    if (data.level >= GREEN_LEVELS.length || tally().green !== 144) return;
-    const message = LEVEL_UP_MESSAGES[data.level - 1];
-    data.level += 1;
-    save();
-    showLevelUp(message);
+  function checkProgress() {
+    if (!goalMet()) return;
+    if (data.level < LEVELS.length) {
+      const before = bandsNow();
+      data.level += 1;
+      data.stars = 0;
+      save();
+      celebrate(LEVEL_UP_MESSAGES[data.level], before, bandsNow(), false);
+    } else if (!data.superstar) {
+      data.superstar = true;
+      save();
+      const now = bandsNow();
+      celebrate(SUPERSTAR_MESSAGE, now, now, true);
+    }
   }
 
-  function showLevelUp(message) {
+  // Full-screen message with a huge emoji, and the map sweeping across to its new colours
+  function celebrate(message, from, to, superstar) {
     const textEl = $('#lvlText');
     const cut = message.lastIndexOf(' ');
     textEl.textContent = message.slice(0, cut + 1);
@@ -634,29 +844,47 @@
     emoji.textContent = message.slice(cut + 1);
     textEl.appendChild(emoji);
 
-    // The map starts all green, then sweeps across to its colours at the new level
     const map = $('#lvlMap');
-    let html = '';
+    let html = '', i = 0;
     for (let a = 1; a <= 12; a++) {
-      for (let b = 1; b <= 12; b++) html += `<i class="c-green" style="transition-delay:${(a + b - 2) * 35}ms"></i>`;
+      for (let b = 1; b <= 12; b++) html += `<i class="c-${from[i++]}" style="transition-delay:${(a + b - 2) * 35}ms"></i>`;
     }
     map.innerHTML = html;
-    const go = $('#lvlGo');
-    go.classList.remove('ready');
+    $('#lvlGo').hidden = superstar;
+    const next = $('#lvlNext');
+    next.hidden = superstar;
+    if (!superstar) {
+      const L = lvl();
+      next.innerHTML = `${WHATS_NEW[data.level]} green under ${plain(L.green)}s, red over ${plain(L.red)}s.<span>Your map starts fresh. ${goalSentence()}</span>`;
+    }
+    $('#keepPlaying').hidden = !superstar;
+    $('#startAgain').hidden = !superstar;
+    const actions = $('#lvlActions');
+    actions.classList.remove('ready');
     $('#levelUp').hidden = false;
-    levelTimers.forEach(clearTimeout);
-    levelTimers = [
-      setTimeout(() => {
-        let i = 0;
-        for (let a = 1; a <= 12; a++) for (let b = 1; b <= 12; b++) map.children[i++].className = 'c-' + stats(a, b).band;
-      }, calm ? 0 : 1300),
-      setTimeout(() => go.classList.add('ready'), calm ? 0 : 2400)
+    celebrationTimers.forEach(clearTimeout);
+    celebrationTimers = [
+      setTimeout(() => { [...map.children].forEach((cell, k) => { cell.className = 'c-' + to[k]; }); }, calm ? 0 : 1300),
+      setTimeout(() => actions.classList.add('ready'), calm ? 0 : (superstar ? 1200 : 2400))
     ];
   }
 
-  $('#lvlGo').addEventListener('click', () => {
+  function closeCelebration() {
     $('#levelUp').hidden = true;
-    if ($('#home').classList.contains('active')) renderMini();
+    if ($('#home').classList.contains('active')) renderHome();
+  }
+
+  $('#lvlGo').addEventListener('click', closeCelebration);
+  $('#keepPlaying').addEventListener('click', closeCelebration);
+  $('#startAgain').addEventListener('click', () => {
+    confirmBox('Start again from Level 1? This wipes all progress on this phone.', 'Start again', true, () => {
+      data = blank();
+      save();
+      selected = null;
+      $('#levelUp').hidden = true;
+      show('home');
+      toast('Back to Level 1');
+    });
   });
 
   /* ---------- Heat map ---------- */
@@ -664,19 +892,22 @@
   let selected = null;
 
   function renderMap() {
+    const bands = bandsNow();
     let html = '<span class="hd corner">×</span>';
     for (let b = 1; b <= 12; b++) html += `<span class="hd" data-col="${b}">${b}</span>`;
+    let i = 0;
     for (let a = 1; a <= 12; a++) {
       html += `<span class="hd" data-row="${a}">${a}</span>`;
       for (let b = 1; b <= 12; b++) {
-        html += `<button class="sq c-${stats(a, b).band}" data-a="${a}" data-b="${b}" aria-label="${a} times ${b}"></button>`;
+        html += `<button class="sq c-${bands[i++]}" data-a="${a}" data-b="${b}" aria-label="${a} times ${b}"></button>`;
       }
     }
     gridEl.innerHTML = html;
-    $('#mapTitle').innerHTML = mapTitle();
-    $('#lGreen').textContent = `Under ${plain(greenUnder())}s`;
-    $('#lAmber').textContent = `${plain(greenUnder())} to ${plain(RED_FROM)}s`;
-    $('#lRed').textContent = `${plain(RED_FROM)}s or more`;
+    const L = lvl();
+    $('#lGreen').textContent = `Under ${plain(L.green)}s`;
+    $('#lAmber').textContent = `${plain(L.green)} to ${plain(L.red)}s`;
+    $('#lRed').textContent = `${plain(L.red)}s or more`;
+    $('#mapGoal').innerHTML = `Level ${data.level}: ${goalParts().text}`;
     const t = tally();
     $('#nGreen').textContent = t.green;
     $('#nAmber').textContent = t.amber;
@@ -696,7 +927,7 @@
     const s = stats(a, b);
     if (s.band === 'none') { infoEl.innerHTML = `<b>${a} × ${b}</b> hasn’t come up yet.`; return; }
     if (s.fresh) {
-      infoEl.innerHTML = `<b>${a} × ${b}</b> hasn’t come up at this level yet. Under ${plain(greenUnder())}s turns it green.`;
+      infoEl.innerHTML = `<b>${a} × ${b}</b> hasn’t come up at this level yet. Under ${plain(lvl().green)}s turns it green.`;
       return;
     }
     const over = s.tries === 1 ? 'from 1 try' : `over the last ${s.tries} tries`;
@@ -765,8 +996,7 @@
     if (!incoming) { toast('Choose a times-tables-backup file'); return; }
     const when = new Date(parsed.saved);
     const which = isNaN(when) ? 'this backup' : 'the backup from ' + when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    const tried = Object.keys(incoming.facts).length;
-    confirmBox(`Restore ${which}? It has ${tried} of 144 sums tried and replaces the progress on this phone.`, 'Restore', false, () => {
+    confirmBox(`Restore ${which}? It’s on Level ${incoming.level} and replaces the progress on this phone.`, 'Restore', false, () => {
       data = incoming;
       save();
       selected = null;
@@ -777,7 +1007,7 @@
 
   $('#backup').addEventListener('click', backup);
   $('#reset').addEventListener('click', () => {
-    confirmBox('Reset all progress on this phone? A backup is the only way to get it back.', 'Reset', true, () => {
+    confirmBox('Reset all progress on this phone and go back to Level 1? A backup is the only way to get it back.', 'Reset', true, () => {
       data = blank();
       save();
       selected = null;
