@@ -9,12 +9,16 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Times Tables">
-<title>Times Tables</title>
+<title>Mental Maths</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
+  /* Layout: a one-screen phone app in a 480px column on a black ground. A games list opens each game's home,
+     play, results and heat map screens, stacked as full-screen panels. Same system as the Times Tables app:
+     system rounded type, big green buttons, green/amber/red heat colours, gold stars. */
   :root {
+    color-scheme: dark;
     --bg: #000000;
     --fg: #ffffff;
     --muted: #8e8e93;
@@ -22,11 +26,21 @@
     --card: #1c1c1e;
     --card-down: #3a3a3c;
     --empty: #2c2c2e;
+    --empty-2: #1f1f21;
+    --line: #262628;
+    --ink: #000000;
     --green: #30d158;
+    --green-pale: #1a6e30;
     --amber: #ff9f0a;
     --red: #ff453a;
+    --gold: #ffd60a;
+    --gold-deep: #a88400;
+    --glow: rgba(48, 209, 88, .45);
+    --glow-ring: rgba(48, 209, 88, .14);
+    --scrim: rgba(0, 0, 0, .7);
     --round: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+    --emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; background: var(--bg); color: var(--fg); }
@@ -46,11 +60,13 @@
   [hidden] { display: none !important; }
 
   .c-green { background: var(--green) !important; }
+  .c-once { background: var(--green-pale) !important; }
   .c-amber { background: var(--amber) !important; }
   .c-red { background: var(--red) !important; }
   .t-green { color: var(--green) !important; }
   .t-amber { color: var(--amber) !important; }
   .t-red { color: var(--red) !important; }
+  .emo { font-family: var(--emoji); font-weight: 400; }
 
   /* Screens */
   .screen {
@@ -61,30 +77,116 @@
   .screen.active { display: flex; animation: fade .18s ease-out; }
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
-  /* Home */
-  .home-head h1 { font-family: var(--round); font-size: 30px; font-weight: 800; letter-spacing: -.01em; }
-  .home-head p { color: var(--muted); font-size: 16px; margin-top: 4px; }
-  .go-wrap { flex: 1; min-height: 0; display: grid; place-items: center; }
+  /* Missing-number box, used in sums, examples and results */
+  .gap {
+    display: inline-block; min-width: 1.05em; padding: 0 .1em; border-radius: .16em; text-align: center;
+    box-shadow: inset 0 0 0 .065em var(--muted); color: var(--muted);
+  }
+
+  /* Games list */
+  .games-head h1 { font-family: var(--round); font-size: 32px; font-weight: 800; letter-spacing: -.01em; }
+  .games-head p { color: var(--muted); font-size: 16px; margin-top: 4px; }
+  .game-list { display: grid; grid-auto-rows: 1fr; gap: 14px; margin-top: 28px; }
+  .game-card {
+    display: flex; align-items: center; gap: 16px; width: 100%; min-height: 112px;
+    padding: 18px 16px; border-radius: 24px; background: var(--card); text-align: left;
+  }
+  .game-card:active { background: var(--card-down); }
+  .glyph {
+    width: 64px; height: 64px; flex: none; border-radius: 50%; display: grid; place-items: center;
+    background: var(--green); color: var(--ink); box-shadow: 0 0 0 6px var(--glow-ring);
+    font-family: var(--round); font-size: 30px; font-weight: 900; letter-spacing: -.02em;
+  }
+  .gc-text { flex: 1; min-width: 0; display: block; }
+  .gc-name { display: block; font-family: var(--round); font-size: 21px; font-weight: 800; line-height: 1.2; }
+  .gc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 8px; font-size: 14px; font-weight: 600; }
+  .gc-stars { color: var(--card-down); letter-spacing: 1px; font-size: 15px; }
+  .gc-stars .on { color: var(--gold); }
+
+  /* Game home */
+  .back { color: var(--green); font-size: 17px; font-weight: 600; padding: 8px 8px 8px 0; }
+  .home-head { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .home-head .back { display: inline-block; font-size: 16px; padding: 0 8px 6px 0; }
+  .home-head h1 { font-family: var(--round); font-size: 42px; font-weight: 800; letter-spacing: .06em; line-height: 1.05; }
+  .lvl-line { color: var(--muted); font-size: 16px; line-height: 1.35; margin-top: 6px; }
+  .lvl-line b { color: var(--fg); font-weight: 700; }
+  .info-btn { font-family: Georgia, "Times New Roman", serif; font-style: italic; font-weight: 700; font-size: 21px; color: var(--fg); }
+  .home-head > .info-btn { margin-top: 26px; }
+  .levels { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; flex: none; }
+  .lvl {
+    height: 56px; border-radius: 14px; background: var(--card);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    font-family: var(--round);
+  }
+  .lvl:active { background: var(--card-down); }
+  .lvl-n { font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .lvl .mark { height: 11px; display: grid; place-items: center; }
+  .lvl .mark i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .lvl .mark svg { width: 9px; height: 11px; fill: currentColor; }
+  .lvl .mark .star { font-size: 13px; line-height: 1; color: var(--gold); }
+  .lvl.sel .mark .star { color: var(--gold-deep); }
+  .lvl.locked { color: var(--faint); }
+  .lvl.sel, .lvl.sel:active { background: var(--fg); color: var(--ink); }
+  .goal { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  .home-goal { flex: none; flex-direction: column; gap: 8px; margin: 0 0 18px; text-align: center; }
+  .home-goal .goal-text { flex: none; max-width: 300px; font-size: 15px; }
+  .prog-sum { margin: 16px 0 14px; }
+  .prog-name { font-size: 18px; font-weight: 700; }
+  .prog-sum .goal-text { margin-top: 3px; }
+  .prog-sum .star-line { margin-top: 6px; }
+  .pips { display: flex; gap: 6px; flex: none; }
+  .pip {
+    min-width: 46px; height: 28px; padding: 0 6px; border-radius: 8px; background: var(--card);
+    display: grid; place-items: center;
+    font-family: var(--round); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums;
+  }
+  .pip.hit { background: var(--green); color: var(--ink); }
+  .pip.empty { background: none; box-shadow: inset 0 0 0 1.5px var(--card-down); color: var(--faint); }
+  .pip.quit { background: none; box-shadow: inset 0 0 0 1.5px var(--card-down); color: var(--muted); font-size: 12px; font-weight: 700; }
+  .goal-text { flex: 1; min-width: 0; color: var(--muted); font-size: 14px; line-height: 1.35; }
+  .goal-text b { color: var(--fg); font-weight: 700; }
+  .star-line { display: flex; gap: 6px; align-items: baseline; margin-top: 10px; color: var(--muted); font-size: 14px; line-height: 1.35; }
+  .star-line .star { color: var(--gold); font-size: 15px; flex: none; }
+  .star-line.got { color: var(--fg); font-weight: 600; }
+  .go-wrap { flex: 1; min-height: 96px; display: grid; place-items: center; container-type: size; }
   .go {
-    width: min(66vw, 36vh, 260px); aspect-ratio: 1; border-radius: 50%;
-    background: var(--green); color: #000;
-    font-family: var(--round); font-size: min(18vw, 10vh, 80px); font-weight: 900; letter-spacing: .02em;
-    box-shadow: 0 0 0 12px rgba(48, 209, 88, .14), 0 0 80px rgba(48, 209, 88, .45);
+    width: min(54vw, 28vh, 230px); width: min(54vw, 78cqh, 230px); max-width: 100%; aspect-ratio: 1; border-radius: 50%;
+    background: var(--green); color: var(--ink);
+    font-family: var(--round); font-size: min(15vw, 8vh, 72px); font-size: calc(min(54vw, 78cqh, 230px) * .31); font-weight: 900; letter-spacing: .02em;
+    box-shadow: 0 0 0 12px var(--glow-ring), 0 0 80px var(--glow);
     transition: transform .12s ease;
   }
   .go:active { transform: scale(.94); }
   .map-card {
-    display: flex; align-items: center; gap: 16px; width: 100%;
+    display: flex; align-items: center; gap: 16px; width: 100%; flex: none;
     padding: 14px 18px 14px 14px; border-radius: 20px; background: var(--card); text-align: left;
   }
   .map-card:active { background: var(--card-down); }
-  .mini { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; width: 96px; flex: none; }
+  .mini { display: grid; gap: 2px; flex: none; width: 84px; }
+  .mini.tt { grid-template-columns: repeat(12, 1fr); }
+  .mini.facts { grid-template-columns: repeat(10, 1fr); }
+  .mini.skills { grid-template-columns: repeat(4, 1fr); gap: 3px; }
   .mini i { aspect-ratio: 1; border-radius: 2px; background: var(--card-down); }
+  .mini.tt i { border-radius: 1.5px; }
+  .mini.skills i { aspect-ratio: 2.2; }
+  .mini i.na { background: none; }
   .map-text { flex: 1; min-width: 0; }
   .map-text b { display: block; font-size: 18px; font-weight: 700; }
   .map-text span { display: block; color: var(--muted); font-size: 14px; margin-top: 4px; }
   .chev { color: var(--faint); font-size: 30px; font-weight: 300; line-height: 1; }
-  .note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 12px; }
+  .note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 16px; }
+
+  @media (max-height: 700px) {
+    .go-wrap { min-height: 80px; }
+    .home-head .back { padding-bottom: 2px; }
+    .home-head h1 { font-size: 34px; }
+    .home-head > .info-btn { margin-top: 20px; }
+    .lvl-line { font-size: 15px; margin-top: 4px; }
+    .home-goal { margin-bottom: 12px; }
+    .lvl { height: 48px; }
+    .map-card { padding: 10px 16px 10px 12px; }
+    .mini { width: 70px; }
+  }
 
   /* Play */
   .top { display: flex; align-items: center; gap: 14px; height: 40px; flex: none; }
@@ -93,16 +195,21 @@
   .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--card); overflow: hidden; }
   .bar i { display: block; height: 100%; width: 0; background: var(--green); border-radius: 3px; transition: width .25s ease; }
   .qcount { color: var(--muted); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
-  .stage { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--round); font-variant-numeric: tabular-nums; }
-  .sum { font-size: clamp(52px, min(19vw, 10.5vh), 112px); font-weight: 700; line-height: 1.05; white-space: nowrap; }
+  .stage {
+    flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: var(--round); font-variant-numeric: tabular-nums;
+  }
+  .sum { font-size: clamp(48px, min(18vw, 10vh), 104px); font-weight: 700; line-height: 1.1; white-space: nowrap; }
   .sum.count { color: var(--green); animation: pop .55s ease-out; }
   @keyframes pop { from { transform: scale(1.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .answer { font-size: clamp(44px, min(16vw, 9vh), 96px); font-weight: 700; line-height: 1.15; min-height: 1.15em; margin-top: 2.5vh; }
+  .answer { font-size: clamp(44px, min(15vw, 8.5vh), 92px); font-weight: 700; line-height: 1.15; min-height: 1.15em; margin-top: 2.5vh; white-space: nowrap; }
   .answer:empty::after { content: ""; display: inline-block; width: .5em; height: .07em; background: var(--fg); animation: blink 1.05s steps(1) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
   .answer.ok { color: var(--green); }
   .answer.bad { color: var(--red); text-decoration: line-through; text-decoration-thickness: .07em; }
-  .reveal { font-size: clamp(30px, min(11vw, 6.5vh), 60px); font-weight: 800; color: var(--green); line-height: 1.2; min-height: 1.2em; margin-top: .5vh; }
+  .reveal { font-size: clamp(30px, min(10vw, 6vh), 56px); font-weight: 800; color: var(--green); line-height: 1.2; min-height: 1.2em; margin-top: .5vh; white-space: nowrap; }
+  .reveal.pts { font-size: clamp(24px, min(8vw, 4.6vh), 40px); animation: rise .45s ease-out; }
+  @keyframes rise { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
   .stage.counting .answer, .stage.counting .reveal { visibility: hidden; }
   .intro-text, .intro-hint { display: none; text-align: center; }
   .intro-text { font-family: var(--sans); font-size: clamp(18px, 5.2vw, 22px); font-weight: 600; line-height: 1.4; max-width: 330px; margin-top: 3vh; text-wrap: balance; }
@@ -120,87 +227,221 @@
   .keypad .del { color: var(--muted); font-size: clamp(22px, 3.4vh, 28px); }
 
   /* Results */
-  .res { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  .res-score { font-family: var(--round); font-size: clamp(96px, min(36vw, 19vh), 168px); font-weight: 800; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-  .res-score small { font-size: .36em; color: var(--muted); font-weight: 700; letter-spacing: 0; }
-  .res-msg { font-size: 19px; font-weight: 600; margin-top: 14px; }
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 4.5vh; }
-  .stat { background: var(--card); border-radius: 20px; padding: 18px 12px 16px; }
-  .stat b { display: block; font-family: var(--round); font-size: clamp(30px, 9vw, 40px); font-weight: 800; font-variant-numeric: tabular-nums; }
-  .stat span { display: block; color: var(--muted); font-size: 14px; margin-top: 4px; }
-  .actions { display: flex; flex-direction: column; gap: 10px; flex: none; }
-  .btn-go { height: 66px; border-radius: 33px; background: var(--green); color: #000; font-family: var(--round); font-size: 24px; font-weight: 900; transition: transform .1s; }
+  .res-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; margin: 0 -20px; padding: 0 20px 16px; }
+  .res-head { text-align: center; padding-top: 1.5vh; }
+  .res-level { color: var(--muted); font-size: 15px; font-weight: 600; }
+  .res-score {
+    font-family: var(--round); font-size: clamp(76px, min(26vw, 13vh), 128px); font-weight: 800;
+    line-height: 1.05; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 6px;
+  }
+  .res-of { color: var(--muted); font-size: 14px; }
+  .res-msg { font-size: 19px; font-weight: 700; margin-top: 12px; }
+  .goal-card { background: var(--card); border-radius: 20px; padding: 14px; margin-top: 20px; }
+  .goal-card .goal { margin-top: 0; }
+  .goal-card .star-line { margin-top: 12px; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 12px; }
+  .stat { background: var(--card); border-radius: 20px; padding: 16px 12px 14px; text-align: center; }
+  .stat b { display: block; font-family: var(--round); font-size: clamp(28px, 8.5vw, 38px); font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat b small { font-size: .55em; color: var(--muted); }
+  .stat span { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .list-head { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 24px 0 4px; }
+  .res-list { list-style: none; }
+  .res-list li {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; gap: 12px; align-items: baseline;
+    padding: 11px 0; border-bottom: 1px solid var(--line);
+    font-family: var(--round); font-size: 17px; font-variant-numeric: tabular-nums;
+  }
+  .res-list .eq { min-width: 0; font-weight: 600; }
+  .res-list .eq b { font-weight: 800; }
+  .res-list li.bad .eq b { color: var(--green); }
+  .res-list .eq small { display: block; font-family: var(--sans); font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .res-list .eq s { color: var(--red); text-decoration-thickness: 1.5px; }
+  .res-list .tm { font-size: 15px; font-weight: 700; }
+  .res-list .pt { text-align: right; font-weight: 800; }
+  .res-list li.bad .pt { color: var(--faint); }
+  .actions { display: flex; flex-direction: column; gap: 10px; flex: none; padding-top: 12px; }
+  .btn-go { height: 66px; border-radius: 33px; background: var(--green); color: var(--ink); font-family: var(--round); font-size: 24px; font-weight: 900; transition: transform .1s; }
   .btn-go:active { transform: scale(.98); }
   .row { display: flex; gap: 10px; }
   .btn { flex: 1; height: 54px; border-radius: 27px; background: var(--card); font-size: 17px; font-weight: 600; display: grid; place-items: center; }
   .btn:active { background: var(--card-down); }
-  .btn-ok { background: var(--green); color: #000; }
-  .btn-danger { background: var(--red); color: #fff; }
+  .btn-ok { background: var(--green); color: var(--ink); }
+  .btn-danger { background: var(--red); color: var(--fg); }
 
-  /* Heat map */
+  /* Heat maps */
   #map { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   #map > * { flex-shrink: 0; }
-  .map-top { display: flex; align-items: center; justify-content: space-between; height: 40px; margin-bottom: 14px; }
-  .back { color: var(--green); font-size: 17px; font-weight: 600; padding: 8px 8px 8px 0; }
+  .map-top { display: flex; align-items: center; justify-content: space-between; height: 40px; margin-bottom: 12px; }
   .map-top h2 { font-size: 17px; font-weight: 700; }
   .spacer { width: 64px; }
-  .grid { display: grid; grid-template-columns: repeat(13, 1fr); gap: 3px; }
-  .hd { aspect-ratio: 1; display: grid; place-items: center; font-family: var(--round); font-size: clamp(10px, 2.9vw, 13px); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .hd.on { color: var(--fg); }
+  .fgrid { display: grid; gap: 3px; }
+  .fgrid.tt { grid-template-columns: repeat(13, minmax(0, 1fr)); }
+  .fgrid.as { grid-template-columns: repeat(11, minmax(0, 1fr)); }
+  .hd {
+    aspect-ratio: 1; display: grid; place-items: center;
+    font-family: var(--round); font-size: clamp(10px, 2.9vw, 13px); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .hd.on, .sh.on, .sl.on { color: var(--fg); }
   .hd.corner { color: var(--faint); }
-  .sq { aspect-ratio: 1; border-radius: 4px; background: var(--empty); }
-  .sq.sel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg); position: relative; z-index: 1; }
-  .info { min-height: 48px; margin: 16px 0 10px; font-size: 15px; line-height: 1.45; color: var(--muted); text-align: center; }
+  .sq { aspect-ratio: 1; max-width: 100%; border-radius: 4px; background: var(--empty); }
+  .fgrid.tt .sq { border-radius: 3px; }
+  .sq.l2 { background: var(--empty-2); }
+  .sq.locked, .cell.locked, .sq.dim, .cell.dim { opacity: .3; }
+  .sq.sel, .cell.sel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--fg); position: relative; z-index: 1; opacity: 1; }
+  .sgrid { display: grid; grid-template-columns: max-content repeat(4, minmax(0, 1fr)); gap: 6px 6px; align-items: center; }
+  .sh { font-family: var(--round); font-size: 13px; font-weight: 700; color: var(--muted); text-align: center; padding-bottom: 2px; }
+  .sh.first { text-align: left; color: var(--faint); }
+  .sl { font-size: 14px; font-weight: 600; color: var(--muted); padding-right: 6px; white-space: nowrap; }
+  .cell { height: 38px; border-radius: 8px; background: var(--empty); }
+  .sgrid .na { height: 38px; display: grid; place-items: center; color: var(--faint); font-size: 13px; }
+  .info { min-height: 66px; margin: 16px 0 10px; font-size: 15px; line-height: 1.45; color: var(--muted); text-align: center; }
   .info b { color: var(--fg); font-weight: 700; }
   .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .legend div { display: flex; align-items: center; gap: 10px; background: var(--card); border-radius: 14px; padding: 12px 14px; }
   .legend i { width: 14px; height: 14px; border-radius: 4px; flex: none; background: var(--card-down); }
-  .legend span { flex: 1; color: var(--muted); font-size: 14px; }
+  .legend span { flex: 1; min-width: 0; color: var(--muted); font-size: 14px; }
   .legend b { font-family: var(--round); font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .data { display: flex; justify-content: center; gap: 6px; margin-top: 20px; }
+  .legend.five > div:last-child { grid-column: 1 / -1; }
+  .data { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 18px; }
+  .data + .data { margin-top: 2px; }
   .btn-small { display: inline-flex; align-items: center; padding: 10px 14px; border-radius: 20px; font-size: 15px; font-weight: 600; color: var(--muted); }
   .btn-small:active { background: var(--card); }
   .btn-small.danger { color: var(--red); }
   .vh { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
 
   /* Confirm sheet and toast */
-  .modal { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .7); display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); animation: fade .15s ease-out; }
+  .modal { position: fixed; inset: 0; z-index: 40; background: var(--scrim); display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); animation: fade .15s ease-out; }
   .sheet { width: 100%; max-width: 440px; background: var(--card); border-radius: 24px; padding: 24px 18px 18px; }
   .sheet p { font-size: 17px; line-height: 1.4; text-align: center; margin-bottom: 20px; }
-  .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); z-index: 50; transform: translate(-50%, 16px); background: #2c2c2e; padding: 12px 18px; border-radius: 22px; font-size: 15px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); z-index: 50;
+    width: max-content; max-width: calc(100% - 40px); transform: translate(-50%, 16px);
+    background: var(--empty); color: var(--fg); padding: 12px 18px; border-radius: 22px;
+    font-size: 15px; line-height: 1.35; text-align: center;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
   /* Level up */
-  .levelup { position: fixed; inset: 0; z-index: 30; background: var(--bg); display: flex; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); animation: fade .25s ease-out; }
-  .lvl-body { width: 100%; max-width: 440px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.6vh; text-align: center; }
+  .levelup { position: fixed; inset: 0; z-index: 30; background: var(--bg); display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); animation: fade .25s ease-out; }
+  .lvl-body { width: 100%; max-width: 440px; margin: auto 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.6vh; text-align: center; }
+  .lvl-body.swap { animation: fade .35s ease-out; }
   .lvl-text { font-family: var(--round); font-size: clamp(24px, min(7.5vw, 4.2vh), 34px); font-weight: 800; line-height: 1.25; text-wrap: balance; }
-  .lvl-emoji, .emo { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-weight: 400; }
-  .lvl-emoji { display: block; font-size: clamp(72px, min(30vw, 15vh), 150px); line-height: 1.1; margin-top: 1vh; animation: devil .9s cubic-bezier(.2, 1.4, .4, 1) .35s both; }
+  .lvl-emoji { display: block; font-family: var(--emoji); font-weight: 400; font-size: clamp(72px, min(30vw, 15vh), 150px); line-height: 1.1; margin-top: 1vh; animation: devil .9s cubic-bezier(.2, 1.4, .4, 1) .35s both; }
   @keyframes devil {
     0% { transform: scale(0) rotate(-30deg); opacity: 0; }
     60% { transform: scale(1.15) rotate(12deg); opacity: 1; }
     100% { transform: scale(1) rotate(0); opacity: 1; }
   }
-  .lvl-map { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; width: min(58vw, 25vh, 230px); }
-  .lvl-map i { aspect-ratio: 1; border-radius: 3px; background: var(--empty); transition: background-color .45s ease; }
+  .lvl-map { display: grid; gap: 3px; width: min(58vw, 25vh, 230px); }
+  .lvl-map.narrow { width: min(44vw, 20vh, 170px); gap: 4px; }
+  .lvl-map i { aspect-ratio: 1; border-radius: 3px; background: var(--empty); transition: background-color .45s ease, opacity .45s ease; }
+  .lvl-map.narrow i { aspect-ratio: 2; border-radius: 4px; }
+  .lvl-map i.na { background: none; }
+  .lvl-map i.lock { opacity: .25; }
   .lvl-actions { width: 100%; display: flex; flex-direction: column; gap: 10px; opacity: 0; pointer-events: none; transition: opacity .3s ease; }
   .lvl-actions.ready { opacity: 1; pointer-events: auto; }
   .lvl-actions .btn { flex: none; }
   .lvl-next { font-size: clamp(15px, 4.3vw, 17px); font-weight: 600; line-height: 1.4; text-wrap: balance; }
   .lvl-next span { display: block; color: var(--muted); font-weight: 400; margin-top: 6px; }
+  .lvl-next .star-nudge i { color: var(--gold); font-style: normal; }
 
-  /* Level and goal */
-  .goal { text-align: center; margin-bottom: 14px; flex: none; }
-  .stars { font-size: 30px; line-height: 1; letter-spacing: 4px; color: var(--card-down); }
-  .stars .on { color: #ffd60a; }
-  .goal-bar { height: 8px; border-radius: 4px; background: var(--card); overflow: hidden; }
-  .goal-bar i { display: block; height: 100%; background: var(--green); border-radius: 4px; }
-  .goal-text { color: var(--muted); font-size: 14px; line-height: 1.4; margin-top: 8px; text-wrap: balance; }
-  .goal-text b, .map-goal b { color: var(--fg); }
-  .goal-star { font-family: var(--round); font-size: 20px; font-weight: 800; }
-  .warn { color: var(--red); }
-  .map-goal { text-align: center; color: var(--muted); font-size: 14px; line-height: 1.4; margin: 0 0 12px; text-wrap: balance; }
-  .sum.long { font-size: clamp(44px, min(16vw, 9vh), 96px); }
+  /* How it works */
+  .manual { position: fixed; inset: 0; z-index: 35; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; animation: fade .2s ease-out; }
+  .man-wrap { max-width: 480px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 36px); }
+  .man-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
+  .man-top h2 { font-family: var(--round); font-size: 26px; font-weight: 800; }
+  .man-text h3 { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 26px 0 8px; }
+  .man-text p { font-size: 16px; line-height: 1.5; }
+  .man-text p + p, .man-text .man-key + p, .man-text p + .man-key { margin-top: 10px; }
+  .man-levels { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px 12px; align-items: center; }
+  .man-levels b { width: 30px; height: 30px; border-radius: 9px; background: var(--card); display: grid; place-items: center; font-family: var(--round); font-size: 16px; font-weight: 800; }
+  .man-levels span { font-size: 16px; line-height: 1.35; }
+  .man-levels em { font-style: normal; color: var(--muted); font-family: var(--round); font-variant-numeric: tabular-nums; }
+  .man-key { display: grid; gap: 8px; }
+  .man-key span { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); }
+  .man-key i { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+
+  /* Arcade: games card, home, play HUD, game over and high scores */
+  .glyph.quad { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; padding: 11px 12px; font-size: 21px; line-height: 1; letter-spacing: 0; }
+  .glyph.quad i { font-style: normal; display: grid; place-items: center; }
+  .home-head h1.arc-title { letter-spacing: .01em; }
+  .head-btns { display: flex; gap: 10px; margin-top: 26px; flex: none; }
+  .icon-btn svg { width: 22px; height: 22px; }
+  .high-card { flex: none; }
+  .high-card .list-head { margin-top: 0; }
+  .high { list-style: none; }
+  .high li {
+    display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; gap: 10px; align-items: baseline;
+    padding: 9px 2px; border-bottom: 1px solid var(--line);
+    font-family: var(--round); font-variant-numeric: tabular-nums;
+  }
+  .high .rk { color: var(--muted); font-size: 14px; font-weight: 700; text-align: right; }
+  .high .ini { font-size: 17px; font-weight: 800; letter-spacing: .14em; }
+  .high .st { color: var(--muted); font-size: 13px; font-weight: 600; }
+  .high .sc { font-size: 17px; font-weight: 800; text-align: right; }
+  .high li.empty, .high li.empty .rk { color: var(--faint); }
+  .high li.me, .high li.me .rk, .high li.me .st { color: var(--gold); }
+  .high.compact { display: grid; grid-template-rows: repeat(5, auto); grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); column-gap: 18px; background: var(--card); border-radius: 20px; padding: 6px 16px; }
+  .high.compact li { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; padding: 7px 0; }
+  .high.compact li:nth-child(5n) { border-bottom: 0; }
+  .high.compact .ini { font-size: 16px; letter-spacing: .08em; }
+  .high.compact .sc { font-size: 16px; }
+  .high-none { list-style: none; background: var(--card); border-radius: 20px; padding: 18px 16px; color: var(--muted); font-size: 15px; line-height: 1.4; text-align: center; }
+  .hud, .lives, .tag { display: none; }
+  #play.arcade .qcount { display: none; }
+  #play.arcade .lives { display: flex; }
+  #play.arcade .hud { display: flex; }
+  #play.arcade .tag { display: block; }
+  #play.arcade .bar i { width: 100%; transform-origin: left center; transition: background-color .3s ease; }
+  .bar i.amber { background: var(--amber); }
+  .bar i.red { background: var(--red); }
+  .lives { gap: 3px; align-items: center; flex: none; }
+  .lives svg { width: 21px; height: 21px; fill: var(--red); }
+  .lives svg.lost { fill: none; stroke: var(--card-down); stroke-width: 2; }
+  .lives.hit { animation: shake .45s ease; }
+  .lives.gain { animation: pop .5s ease-out; }
+  @keyframes shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
+  .hud { align-items: center; justify-content: space-between; gap: 12px; flex: none; margin-top: 12px; font-family: var(--round); font-variant-numeric: tabular-nums; }
+  .hud-score { font-size: 30px; font-weight: 800; line-height: 1.1; min-width: 0; }
+  .hud-mult { min-width: 52px; padding: 5px 10px; border-radius: 14px; background: var(--card); color: var(--muted); font-size: 16px; font-weight: 800; text-align: center; }
+  .hud-mult.on { background: var(--gold); color: var(--ink); }
+  .hud-mult.up { animation: pop .45s ease-out; }
+  .hud-stage { color: var(--muted); font-size: 16px; font-weight: 700; white-space: nowrap; }
+  .tag { height: 20px; margin-bottom: 1vh; font-family: var(--sans); font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
+  .sum.gold { color: var(--gold); }
+  .sum.count.banner, .sum.count.gold { color: var(--gold); }
+  .sum.count.life, .sum.count.over { color: var(--red); }
+  .sum.count.paused { color: var(--fg); }
+  .sum.count.banner, .sum.count.life, .sum.count.over, .sum.count.paused { animation-name: popSoft; }
+  @keyframes popSoft { from { transform: scale(1.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .reveal.pts.gold { color: var(--gold); }
+  .over-title { font-family: var(--round); font-size: clamp(24px, 7vw, 30px); font-weight: 800; line-height: 1.25; text-wrap: balance; }
+  .stats.three { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .stats.three .stat { padding: 14px 6px 12px; }
+  .stats.three .stat b { font-size: clamp(24px, 7vw, 32px); }
+  .initials { margin-top: 18px; background: var(--card); border-radius: 20px; padding: 16px 14px; text-align: center; }
+  .initials label { display: block; color: var(--muted); font-size: 15px; margin-bottom: 12px; }
+  .ini-row { display: flex; gap: 10px; justify-content: center; }
+  .ini-row input {
+    width: 150px; height: 54px; border: 0; border-radius: 16px; background: var(--empty); color: var(--fg);
+    font-family: var(--round); font-size: 30px; font-weight: 800; letter-spacing: .3em; padding-left: .3em; text-align: center; text-transform: uppercase;
+    -webkit-user-select: text; user-select: text;
+  }
+  .ini-row input::placeholder { color: var(--faint); }
+  .ini-row .btn { flex: none; width: 96px; }
+  .man-text .btn-small { margin-top: 6px; margin-left: -14px; }
+  @media (max-height: 700px) {
+    .head-btns { margin-top: 20px; }
+    .high.compact li { padding: 5px 0; }
+    .hud { margin-top: 8px; }
+    .hud-score { font-size: 26px; }
+  }
+  @media (max-width: 350px) {
+    .high.compact { column-gap: 12px; padding: 6px 12px; }
+    .high.compact li { grid-template-columns: 16px minmax(0, 1fr) auto; gap: 6px; }
+    .high.compact .ini, .high.compact .sc { font-size: 15px; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -208,20 +449,53 @@
 </style>
 </head>
 <body>
+<section id="games" class="screen">
+  <header class="games-head">
+    <h1>Mental Maths</h1>
+    <p>Pick a game</p>
+  </header>
+  <div id="gameList" class="game-list"></div>
+  <p id="note" class="note" hidden>Progress can’t be saved here, so it resets when you close this.</p>
+</section>
 
 <section id="home" class="screen">
   <header class="home-head">
-    <h1>Times Tables</h1>
-    <p id="levelLine"></p>
+    <div>
+      <button id="toGames" class="back">‹ Games</button>
+      <h1 id="gameName"></h1>
+      <p id="lvlLine" class="lvl-line"></p>
+    </div>
+    <button id="homeInfo" class="icon-btn info-btn" aria-label="How it works">i</button>
   </header>
   <div class="go-wrap"><button id="go" class="go">GO</button></div>
-  <div id="goal" class="goal"></div>
+  <div class="goal home-goal">
+    <div id="pips" class="pips" aria-label="Your last three scores"></div>
+    <p id="goalText" class="goal-text"></p>
+  </div>
   <button id="openMap" class="map-card">
     <div id="mini" class="mini" aria-hidden="true"></div>
-    <div class="map-text"><b id="miniTitle">Heat map</b><span id="miniText"></span></div>
+    <div class="map-text"><b>Progress</b><span id="miniText"></span></div>
     <span class="chev" aria-hidden="true">›</span>
   </button>
-  <p id="note" class="note" hidden>Preview: progress resets when you close it.</p>
+</section>
+
+<section id="arcade" class="screen">
+  <header class="home-head">
+    <div>
+      <button id="arcBack" class="back">‹ Games</button>
+      <h1 class="arc-title">Arcade</h1>
+      <p id="arcLine" class="lvl-line"></p>
+    </div>
+    <div class="head-btns">
+      <button id="arcSound" class="icon-btn" aria-label="Sound on"></button>
+      <button id="arcInfo" class="icon-btn info-btn" aria-label="How it works">i</button>
+    </div>
+  </header>
+  <div class="go-wrap"><button id="arcGo" class="go">GO</button></div>
+  <div class="high-card">
+    <h3 class="list-head">High scores</h3>
+    <ol id="arcHigh" class="high compact"></ol>
+  </div>
 </section>
 
 <section id="play" class="screen">
@@ -229,8 +503,15 @@
     <button id="quit" class="icon-btn" aria-label="Stop">✕</button>
     <div class="bar"><i id="bar"></i></div>
     <span id="qcount" class="qcount">1/10</span>
+    <span id="lives" class="lives" role="img" aria-label="3 lives"></span>
+  </div>
+  <div class="hud" aria-live="polite">
+    <b id="arcScore" class="hud-score">0</b>
+    <span id="arcMult" class="hud-mult">×1</span>
+    <span id="arcStage" class="hud-stage">Stage 1</span>
   </div>
   <div id="stage" class="stage">
+    <p id="tag" class="tag"></p>
     <div id="sum" class="sum"></div>
     <div id="answer" class="answer"></div>
     <div id="reveal" class="reveal"></div>
@@ -246,18 +527,31 @@
 </section>
 
 <section id="results" class="screen">
-  <div class="res">
-    <p id="resScore" class="res-score"></p>
-    <p id="resMsg" class="res-msg"></p>
-    <div class="stats">
-      <div class="stat"><b id="resTime"></b><span>Time taken</span></div>
-      <div class="stat"><b id="resAvg"></b><span>Average per sum</span></div>
+  <div id="resScroll" class="res-scroll">
+    <div class="res-head">
+      <p id="resLevel" class="res-level"></p>
+      <p id="resScore" class="res-score"></p>
+      <p class="res-of">points out of 1,000</p>
+      <p id="resMsg" class="res-msg"></p>
     </div>
+    <div class="goal-card">
+      <div class="goal">
+        <div id="resPips" class="pips" aria-label="Your last three scores"></div>
+        <p id="resGoal" class="goal-text"></p>
+      </div>
+      <p id="resStar" class="star-line"></p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="resRight"></b><span>Correct</span></div>
+      <div class="stat"><b id="resAvg"></b><span>Average time</span></div>
+    </div>
+    <h3 class="list-head">Your sums</h3>
+    <ol id="resList" class="res-list"></ol>
   </div>
   <div class="actions">
     <button id="again" class="btn-go">Go again</button>
     <div class="row">
-      <button id="resMap" class="btn">Heat map</button>
+      <button id="resMap" class="btn">Progress</button>
       <button id="resHome" class="btn">Home</button>
     </div>
   </div>
@@ -265,25 +559,63 @@
 
 <section id="map" class="screen">
   <div class="map-top">
-    <button id="mapBack" class="back">‹ Home</button>
-    <h2 id="mapTitle">Heat map</h2>
-    <span class="spacer"></span>
+    <button id="mapBack" class="back">‹ Back</button>
+    <h2>Progress</h2>
+    <button id="mapInfo" class="icon-btn info-btn" aria-label="How it works">i</button>
   </div>
-  <div id="grid" class="grid"></div>
+  <div id="levels" class="levels" role="radiogroup" aria-label="Level"></div>
+  <div class="prog-sum">
+    <p id="progName" class="prog-name"></p>
+    <p id="progLine" class="goal-text"></p>
+    <p id="progStar" class="star-line"></p>
+  </div>
+  <div id="grid" class="fgrid"></div>
   <p id="info" class="info"></p>
-  <p id="mapGoal" class="map-goal"></p>
-  <div class="legend">
-    <div><i class="c-green"></i><span id="lGreen"></span><b id="nGreen">0</b></div>
-    <div><i class="c-amber"></i><span id="lAmber"></span><b id="nAmber">0</b></div>
-    <div><i class="c-red"></i><span id="lRed"></span><b id="nRed">0</b></div>
-    <div><i></i><span>Not tried</span><b id="nNone">144</b></div>
+  <div id="legend" class="legend">
+    <div><i class="c-green"></i><span>Fast</span><b id="nGreen">0</b></div>
+    <div id="lgOnce"><i class="c-once"></i><span>Fast once</span><b id="nOnce">0</b></div>
+    <div><i class="c-amber"></i><span>Getting there</span><b id="nAmber">0</b></div>
+    <div><i class="c-red"></i><span>Slow or wrong</span><b id="nRed">0</b></div>
+    <div><i></i><span>Not tried</span><b id="nNone">0</b></div>
   </div>
   <div class="data">
     <button id="backup" class="btn-small">Back up</button>
     <label for="file" class="btn-small">Restore</label>
     <button id="reset" class="btn-small danger">Reset</button>
   </div>
+  <div class="data">
+    <button id="unlockAll" class="btn-small">Unlock all levels (for testing)</button>
+  </div>
   <input id="file" class="vh" type="file" accept=".json,.txt,application/json,text/plain">
+</section>
+
+<section id="over" class="screen">
+  <div id="overScroll" class="res-scroll">
+    <div class="res-head">
+      <p id="overTitle" class="over-title"></p>
+      <p id="overScore" class="res-score"></p>
+      <p class="res-of">points</p>
+    </div>
+    <div id="initialsBox" class="initials" hidden>
+      <label for="initials">Type your initials for the high score table</label>
+      <div class="ini-row">
+        <input id="initials" type="text" maxlength="3" placeholder="ABC" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done">
+        <button id="initOk" class="btn btn-ok">Done</button>
+      </div>
+    </div>
+    <div class="stats three">
+      <div class="stat"><b id="overStage"></b><span>Stage</span></div>
+      <div class="stat"><b id="overRight"></b><span>Right</span></div>
+      <div class="stat"><b id="overRun"></b><span>Best run</span></div>
+    </div>
+    <h3 class="list-head">High scores</h3>
+    <ol id="overHigh" class="high"></ol>
+    <p id="overNote" class="note"></p>
+  </div>
+  <div class="actions">
+    <button id="overAgain" class="btn-go">Play again</button>
+    <div class="row"><button id="overHome" class="btn">Home</button></div>
+  </div>
 </section>
 
 <div id="modal" class="modal" hidden>
@@ -307,6 +639,12 @@
     </div>
   </div>
 </div>
+<div id="manual" class="manual" hidden>
+  <div class="man-wrap" role="dialog" aria-labelledby="manTitle">
+    <div class="man-top"><h2 id="manTitle">How it works</h2><button id="manClose" class="icon-btn" aria-label="Close">✕</button></div>
+    <div id="manText" class="man-text"></div>
+  </div>
+</div>
 <div id="toast" class="toast" role="status"></div>
 
 <script>
@@ -315,329 +653,1062 @@
 
   /* ---------- Settings: easy to tweak ---------- */
   const QUESTIONS = 10;
-  // Each level: green under / red from (ms), whether division is mixed in, and what it takes to move on:
-  // either perfect rounds (stars), or a % of the map green with no red or untried squares
-  const LEVELS = [
-    { green: 4000, red: 8000, division: false, stars: 5 },
-    { green: 4000, red: 8000, division: true, stars: 5 },
-    { green: 2500, red: 5000, division: false, pct: 75 },
-    { green: 2500, red: 5000, division: true, pct: 100 },
-    { green: 2000, red: 4000, division: true, pct: 90 },
-    { green: 1500, red: 3000, division: true, pct: 75 }
-  ];
-  const LEVEL_UP_MESSAGES = {
-    2: 'Smashed it! Now try them backwards ➗',
-    3: 'Congratulations! Now let’s make it harder 😈',
-    4: 'Division’s back, and this time it’s fast ⚡',
-    5: 'Getting scary good… faster! 🔥',
-    6: 'Still too easy huh… ok then, beat this! 👿'
-  };
-  const SUPERSTAR_MESSAGE = 'You’re a maths superstar! 🌟';
-  // What changes at each level, shown under the level-up message
-  const WHATS_NEW = {
-    2: 'Division joins in, at the same speeds:',
-    3: 'Just times tables, but faster:',
-    4: 'Division’s back, at the same speeds:',
-    5: 'Faster again:',
-    6: 'The last level:'
-  };
-  const ROLLING = 5;             // each square averages its last 5 answers at the current level
-  const MAX_COUNTED = 10000;     // one distracted answer counts as at most 10 seconds
-  const KEEP = 20;               // answers stored per square
-  const REPEATS = 5;             // levels 1 and 2: squares she's struggling with that come back each round
-  const REINFORCE = 2;           // green squares mixed into every round to keep them sharp
-  const WEAK_WHILE_FILLING = 3;  // red/amber squares per round while some squares are still untried
-  const STORE_KEY = 'times-tables-v1';
+  const TARGET = 900;            // points to aim for in a round...
+  const STREAK = 3;              // ...three rounds in a row, to unlock the next level
+  const ROLLING = 5;             // facts squares use their last 5 tries
+  const WRONG_COUNTS_AS = 2;     // on the map, a wrong answer counts as at least 2 x par (red)
+  const MAX_COUNTED = 4;         // and one distracted answer counts as at most 4 x par
+  const STAR_TRIES = 2;          // facts maps: a star needs every square green, each tried at least twice
+  const STAR_ROUNDS = 10;        // skills map: boxes look back over the last 10 rounds; its star needs 10 played
+  const REPEATS = 5;             // facts levels: up to 5 squares she's slow or wrong on come back each round
+  const KEEP = 10;               // tries stored per facts square (per level, in times tables)
+  const KEEP_SKILL = 150;        // tries stored per skills box (enough for 10 rounds)
+  const STORE_KEY = 'maths-games-v1';
+  const OLD_TIMES_KEY = 'times-tables-v1';  // progress saved by the Times Tables app
+  const OLD_ADDSUB_KEY = 'mental-maths-v1'; // progress saved by the adding and taking away prototype
+  const SUPERSTAR = 'You’re a maths superstar! 🌟';
+  const TEST_PAGE = !!window.claude || location.hostname === 'localhost'; // the test page on claude.ai, and test runs
+  const STAR_WELL_DONE = level => `Well done! You’ve earned the level ${level} star ⭐`;
+  const STAR_KEEP_GOING = 'You can still come back and practise if you like. Your learning never ends!';
 
   const $ = sel => document.querySelector(sel);
+  const MINUS = '−', TIMES = '×', DIVIDE = '÷';
+  const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const secs = ms => (ms / 1000).toFixed(1) + 's';
+  const plain = ms => String(ms / 1000);
+  const isNum = x => typeof x === 'number' && isFinite(x);
+  const intIn = (x, lo, hi, dflt) => (Number.isInteger(x) && x >= lo && x <= hi ? x : dflt);
+  const emo = s => `<span class="emo">${s}</span>`;
+  const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six'];
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  const chance = p => Math.random() < p;
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+    return arr;
+  }
+  function weightedSample(items, weights, k) {
+    const pool = items.map((it, i) => ({ it, w: weights[i] })), out = [];
+    while (out.length < k && pool.length) {
+      let x = Math.random() * pool.reduce((s, p) => s + p.w, 0), j = 0;
+      while (j < pool.length - 1 && (x -= pool[j].w) >= 0) j += 1;
+      out.push(pool.splice(j, 1)[0].it);
+    }
+    return out;
+  }
+  const goalSentence = L => `Score ${TARGET} ${WORDS[STREAK]} rounds in a row to ${L < 6 ? `unlock level ${L + 1}` : 'become a maths superstar'}.`;
 
-  /* ---------- Storage ---------- */
-  // Uses the phone's local storage when deployed. Previews that block storage fall back to memory.
+  /* ---------- Scoring and heat map colours ---------- */
+  // 50 for a right answer, plus up to 50 for speed: full at par, fading to none at 3 x par
+  function points(ok, ms, par) {
+    if (!ok) return 0;
+    const speed = Math.min(1, Math.max(0, (3 * par - ms) / (2 * par)));
+    return 50 + Math.round(50 * speed);
+  }
+  const bandOf = x => (x <= 1 ? 'green' : x < 2 ? 'amber' : 'red');
+  // How many rounds in a row, ending with the latest, scored the target. A quit round is stored as -1.
+  const streakOf = s => { let n = 0; for (let i = s.length - 1; i >= 0 && s[i] >= TARGET; i--) n += 1; return n; };
+
+  // Colours come from tries measured against their own par: green at or under par on average,
+  // red at 2 x par or slower. A wrong answer counts as at least 2 x par, and a wrong latest answer stops green.
+  function summarise(tries) {
+    if (!tries.length) return { band: 'none', tries: 0 };
+    let total = 0, parTotal = 0, wrong = 0;
+    for (const [ms, ok, par] of tries) {
+      let x = ms / par;
+      if (!ok) { wrong += 1; x = Math.max(x, WRONG_COUNTS_AS); }
+      total += Math.min(x, MAX_COUNTED);
+      parTotal += par;
+    }
+    const ratio = total / tries.length, avgPar = parTotal / tries.length;
+    let band = bandOf(ratio);
+    if (band === 'green' && !tries[tries.length - 1][1]) band = 'amber';
+    return { band, ratio, avgPar, shownMs: ratio * avgPar, tries: tries.length, wrong };
+  }
+  // Facts squares use their last 5 tries. Fast but only tried once shows dark green ('once').
+  function factBand(rec) {
+    const r = rec ? rec.r : [];
+    const s = summarise(r.slice(-ROLLING));
+    s.total = r.length;
+    if (s.band === 'green' && s.total < STAR_TRIES) s.band = 'once';
+    return s;
+  }
+  // Times tables only: 'fresh' is a square known from an earlier level but not yet tried at this one. It shows amber.
+  const shade = band => (band === 'fresh' ? 'amber' : band);
+  const overText = s => (s.tries === 1 ? 'from 1 try' : `over the last ${s.tries} tries`);
+  const wrongText = s => (s.wrong ? `, with ${s.wrong} wrong` : '');
+
+  /* ---------- Picking a facts round (times tables, and adding levels 1-2) ---------- */
+  // Up to 5 squares she's been slow or wrong on come back (reds first, least recently seen first).
+  // The rest are drawn at random, leaning towards squares that aren't green twice over yet.
+  const REST_WEIGHT = { none: 3, fresh: 3, once: 3, red: 2, amber: 2, green: 1 };
+  function pickFacts(cells, statsOf, seenOf) {
+    const items = cells.map(c => ({ c, band: statsOf(c).band, seen: seenOf(c), rnd: Math.random() }));
+    const weak = items.filter(x => x.band === 'red' || x.band === 'amber')
+      .sort((x, y) => ((x.band === 'red' ? 0 : 1) - (y.band === 'red' ? 0 : 1)) || (x.seen - y.seen) || (x.rnd - y.rnd));
+    const repeats = weak.slice(0, REPEATS);
+    const rest = items.filter(x => !repeats.includes(x));
+    const more = weightedSample(rest, rest.map(x => REST_WEIGHT[x.band]), QUESTIONS - repeats.length);
+    return { repeats: repeats.map(x => x.c), rest: more.map(x => x.c) };
+  }
+  // The form of the latest slow or wrong try on a square (true = division or take-away), or null
+  function weakForm(rec) {
+    const r = rec ? rec.r.slice(-ROLLING) : [];
+    for (let i = r.length - 1; i >= 0; i--) {
+      const [ms, ok, par, form] = r[i];
+      if (!ok || ms > par) return form === 1;
+    }
+    return null;
+  }
+  // Repeats keep the form she struggled with; the rest make the round about half and half
+  function withForms(repeats, rest, recOf) {
+    const picks = repeats.map(c => ({ c, form: weakForm(recOf(c)) })).concat(rest.map(c => ({ c, form: null })));
+    let left = Math.max(0, Math.ceil(picks.length / 2) - picks.filter(p => p.form === true).length);
+    shuffle(picks.filter(p => p.form === null)).forEach(p => { p.form = left > 0; if (left > 0) left -= 1; });
+    return shuffle(picks);
+  }
+
+  /* ---------- Times tables ---------- */
+  const TT = {
+    id: 'times',
+    name: 'Multiplication and division',
+    label: 'multiplication and division',
+    glyph: TIMES + DIVIDE,
+    // Par is today's green line at each level; red is double it
+    levels: [null,
+      { name: 'Times tables',      par: 4000, div: false, eg: ['7 × 8', '6 × 9', '12 × 4'] },
+      { name: 'Division joins in', par: 4000, div: true,  eg: ['7 × 8', '56 ÷ 8', '63 ÷ 9'] },
+      { name: 'Faster',            par: 2500, div: false, eg: ['8 × 7', '9 × 12', '6 × 6'] },
+      { name: 'Division, faster',  par: 2500, div: true,  eg: ['11 × 7', '84 ÷ 7', '48 ÷ 6'] },
+      { name: 'Faster again',      par: 2000, div: true,  eg: ['12 × 12', '96 ÷ 8', '7 × 9'] },
+      { name: 'Lightning',         par: 1500, div: true,  eg: ['8 × 8', '132 ÷ 11', '9 × 7'] }
+    ],
+    levelUp: {
+      2: 'Smashed it! Now try them backwards ➗',
+      3: 'Congratulations! Now let’s make it harder 😈',
+      4: 'Division’s back, and this time it’s fast ⚡',
+      5: 'Getting scary good… faster! 🔥',
+      6: 'Still too easy huh… ok then, beat this! 👿'
+    },
+    whatsNewLead: {
+      2: 'Division joins in, at the same speeds:',
+      3: 'Just times tables, but faster:',
+      4: 'Division’s back, at the same speeds:',
+      5: 'Faster again:',
+      6: 'The last level:'
+    }
+  };
+  const TT_CELLS = [];
+  for (let a = 1; a <= 12; a++) for (let b = 1; b <= 12; b++) TT_CELLS.push([a, b]);
+  const ttKey = (a, b, L) => `${a}x${b}@${L}`;
+
+  TT.line = L => { const l = TT.levels[L]; return `${l.div ? 'Times tables and division' : 'Times tables'}, green under ${plain(l.par)}s`; };
+  // A square at a level uses its last 5 tries at that level. Division counts towards its times table.
+  TT.stats = (a, b, L) => {
+    const f = data.g.times.facts, rec = f[ttKey(a, b, L)];
+    if (rec && rec.r.length) return factBand(rec);
+    for (let k = L - 1; k >= 1; k--) if (f[ttKey(a, b, k)]) return { band: 'fresh', tries: 0 };
+    return { band: 'none', tries: 0 };
+  };
+  TT.q = (L, a, b, div) => {
+    const q = div ? { t: [a * b, DIVIDE, b], ans: a } : { t: [a, TIMES, b], ans: a * b };
+    return Object.assign(q, { game: 'times', kind: 'facts', key: ttKey(a, b, L), level: L, form: div ? 1 : 0, par: TT.levels[L].par });
+  };
+  TT.pickRound = L => {
+    const f = data.g.times.facts, recOf = ([a, b]) => f[ttKey(a, b, L)];
+    const { repeats, rest } = pickFacts(TT_CELLS, ([a, b]) => TT.stats(a, b, L), c => { const r = recOf(c); return r ? r.t : 0; });
+    const picks = TT.levels[L].div ? withForms(repeats, rest, recOf) : shuffle(repeats.concat(rest).map(c => ({ c, form: false })));
+    return picks.map(p => TT.q(L, p.c[0], p.c[1], p.form));
+  };
+  TT.starProgress = L => {
+    const done = TT_CELLS.filter(([a, b]) => TT.stats(a, b, L).band === 'green').length;
+    return { done, total: TT_CELLS.length, ready: done === TT_CELLS.length };
+  };
+  TT.starText = (L, p) => `Star: turn every square green. ${p.total - p.done} to go.`;
+  TT.intro = L => {
+    const l = TT.levels[L], g = plain(l.par), r = plain(2 * l.par);
+    return [
+      `Answer these ${l.div ? 'times tables and division' : 'times tables'} sums within ${g} seconds for full points and a green square on your heat map.`,
+      `A right answer scores 50, plus up to 50 for speed. Between ${g} and ${r} seconds the square goes amber. Over ${r} seconds it’s red.`,
+      goalSentence(L)
+    ];
+  };
+  TT.whatsNew = L => {
+    const l = TT.levels[L];
+    return `${TT.whatsNewLead[L]} green under ${plain(l.par)}s, red over ${plain(2 * l.par)}s.<span>Your map starts fresh. ${goalSentence(L)}</span>`;
+  };
+  TT.renderGrid = L => {
+    const bands = [];
+    let html = `<span class="hd corner">${TIMES}</span>`;
+    for (let b = 1; b <= 12; b++) html += `<span class="hd" data-col="${b}">${b}</span>`;
+    for (let a = 1; a <= 12; a++) {
+      html += `<span class="hd" data-row="${a}">${a}</span>`;
+      for (let b = 1; b <= 12; b++) {
+        const band = TT.stats(a, b, L).band;
+        bands.push(band);
+        html += `<button class="sq c-${shade(band)}" data-k="${a}x${b}" data-r="${a}" data-c="${b}" data-a="${a}" data-b="${b}" aria-label="${a} times ${b}"></button>`;
+      }
+    }
+    return {
+      cls: 'fgrid tt', html, bands, once: true,
+      hint: 'Tap a square to see its time.'
+    };
+  };
+  TT.cellInfo = (el, L) => {
+    const a = +el.dataset.a, b = +el.dataset.b, l = TT.levels[L], s = TT.stats(a, b, L);
+    const name = l.div ? `<b>${a} × ${b}</b> and <b>${a * b} ÷ ${b}</b>` : `<b>${a} × ${b}</b>`;
+    const many = l.div;
+    if (L > data.g.times.unlocked) return `${name} at level ${L}: unlock it first.`;
+    if (s.band === 'none') return `${name} ${many ? 'haven’t' : 'hasn’t'} come up yet.`;
+    if (s.band === 'fresh') return `${name} ${many ? 'haven’t' : 'hasn’t'} come up at this level yet. Under ${plain(l.par)}s turns it green.`;
+    if (s.band === 'once') return `${name} took <b class="t-green">${secs(s.shownMs)}</b> from 1 try. One more fast try turns the square green.`;
+    return `${name} ${many ? 'average' : 'averages'} <b class="t-${s.band}">${secs(s.shownMs)}</b> ${overText(s)}${wrongText(s)}. Full speed points under ${plain(l.par)}s.`;
+  };
+  TT.mini = L => {
+    let html = '', green = 0;
+    TT_CELLS.forEach(([a, b]) => { const band = TT.stats(a, b, L).band; if (band === 'green') green += 1; html += `<i class="c-${shade(band)}"></i>`; });
+    return { cls: 'mini tt', html, text: `${green} of 144 squares green` };
+  };
+  // The level-up screen sweeps the map from the old level's colours to the new level's
+  TT.celebrationMap = (from, to) => ({
+    cols: 12,
+    cells: TT_CELLS.map(([a, b]) => ({ from: shade(TT.stats(a, b, from).band), to: shade(TT.stats(a, b, to).band), delay: (a + b - 2) * 35 }))
+  });
+  // The star screen fills in the level's finished map, square by square
+  TT.starMap = L => ({
+    cols: 12,
+    cells: TT_CELLS.map(([a, b]) => ({ from: 'none', to: shade(TT.stats(a, b, L).band), delay: (a + b - 2) * 35 }))
+  });
+
+  /* ---------- Adding and taking away ---------- */
+  const TAP_MS = 400;            // typing time allowed per digit of the answer, added to par
+  const SUB_EXTRA_MS = 400;      // levels 1 and 2: take-aways get a little longer than adds
+  // Seconds to work out each kind of sum, before typing. Par = this + 0.4s for each digit of the answer.
+  const THINK = {
+    facts:   { 1: 2.0, 2: 2.4 },
+    carry:   { 3: 3.6, 4: 4.4, 5: 5.0, 6: 10 },
+    borrow:  { 3: 4.0, 4: 5.0, 5: 5.6, 6: 12 },
+    bonds:   { 3: 3.0, 4: 4.4, 5: 5.0, 6: 8 },
+    countup: { 4: 3.4, 5: 4.4, 6: 6 },
+    adjust:  { 5: 5.4, 6: 7 },
+    missing: { 6: 12 }
+  };
+  const AS = {
+    id: 'addsub',
+    name: 'Addition and subtraction',
+    label: 'addition and subtraction',
+    glyph: '+' + MINUS,
+    levels: [null,
+      { name: 'Within 10',   skill: 'Number bonds to 10',                 eg: ['3 + 4', '9 − 5', '6 + 4'] },
+      { name: 'Within 20',   skill: 'Crossing 10',                        eg: ['8 + 7', '15 − 9', '10 + 6'] },
+      { name: 'Two-digit',   skill: 'Carrying, borrowing, bonds to 100',  eg: ['38 + 27', '63 − 28', '100 − 63'] },
+      { name: 'Three-digit', skill: 'Bonds to 1,000, counting up',        eg: ['650 + 380', '1,000 − 375', '702 − 698'] },
+      { name: 'Four-digit',  skill: 'Round numbers, round and adjust',    eg: ['3,450 + 2,600', '5,002 − 1,998'] },
+      { name: 'Brutal',      skill: 'Big messy numbers, missing numbers', eg: ['4,738 + 2,869', '6,003 − 2,457', '? − 387 = 1,245'] }
+    ],
+    levelUp: {
+      2: 'Easy peasy! Now let’s cross the ten 🚀',
+      3: 'Bigger numbers time 💪',
+      4: 'Into the hundreds! 🧗',
+      5: 'Thousands now… still with us? 😮',
+      6: 'Brutal mode. You asked for it 👿'
+    }
+  };
+  // Rows of the skills map. A skill appears from the first level that has a THINK time for it.
+  const SKILLS = [
+    { id: 'carry',   name: 'Carrying',       eg: { 3: '38 + 27', 4: '650 + 380', 5: '3,450 + 2,600', 6: '4,738 + 2,869' } },
+    { id: 'borrow',  name: 'Borrowing',      eg: { 3: '63 − 28', 4: '720 − 450', 5: '6,240 − 1,700', 6: '6,003 − 2,457' } },
+    { id: 'bonds',   name: 'Bonds',          eg: { 3: '100 − 63', 4: '1,000 − 375', 5: '10,000 − 3,740', 6: '10,000 − 4,738' } },
+    { id: 'countup', name: 'Counting up',    eg: { 4: '702 − 698', 5: '5,002 − 4,987', 6: '7,012 − 6,895' } },
+    { id: 'adjust',  name: 'Round & adjust', eg: { 5: '3,456 + 1,999', 6: '8,315 − 3,997' } },
+    { id: 'missing', name: 'Missing number', eg: { 6: '? − 387 = 1,245' } }
+  ];
+  const skillsAt = L => SKILLS.filter(s => THINK[s.id][L]).map(s => s.id);
+  // Facts map: a + b for a, b from 1 to 10. Sums up to 10 are level 1, the rest (crossing 10) are level 2.
+  const FACT_CELLS = { 1: [], 2: [] };
+  for (let a = 1; a <= 10; a++) for (let b = 1; b <= 10; b++) FACT_CELLS[a + b <= 10 ? 1 : 2].push([a, b]);
+  const factLevel = (a, b) => (a + b <= 10 ? 1 : 2);
+
+  const dig = (n, p) => Math.floor(n / p) % 10;
+  function carries(a, b) {
+    let c = 0, n = 0;
+    for (let p = 1; p <= 1e4; p *= 10) { c = dig(a, p) + dig(b, p) + c >= 10 ? 1 : 0; n += c; }
+    return n;
+  }
+  function borrows(a, b) {
+    let br = 0, n = 0;
+    for (let p = 1; p <= 1e4; p *= 10) { br = dig(a, p) - dig(b, p) - br < 0 ? 1 : 0; n += br; }
+    return n;
+  }
+  const add = (a, b) => ({ t: [a, '+', b], ans: a + b });
+  const either = (a, b) => (chance(0.5) ? add(a, b) : add(b, a));
+  const sub = (a, b) => ({ t: [a, MINUS, b], ans: a - b });
+  // a + ? = c, or ? + b = c
+  const missAdd = (a, b, gapFirst) => (gapFirst ? { t: ['?', '+', b, '=', a + b], ans: a } : { t: [a, '+', '?', '=', a + b], ans: b });
+  // a − ? = c, or ? − b = c
+  const missSub = (a, b, gapFirst) => (gapFirst ? { t: ['?', MINUS, b, '=', a - b], ans: a } : { t: [a, MINUS, '?', '=', a - b], ans: b });
+  // 100 − 63, or 63 + ? = 100
+  const bond = (whole, x) => (chance(0.6) ? sub(whole, x) : missAdd(x, whole - x, false));
+  // Just under a round number, for round and adjust: 1,999 or 698
+  function nearRound(dMax) {
+    const R = chance(0.5) ? 1000 * ri(1, 4) : 100 * ri(3, 39);
+    return R - ri(1, dMax);
+  }
+  function roundAdjust(dMax) {
+    const k = Math.random();
+    if (k < 0.4) for (;;) { const a = ri(1100, 7999), b = nearRound(dMax); if (a % 10 && a + b <= 9999) return either(a, b); }
+    if (k < 0.8) for (;;) { const a = ri(2100, 9999), b = nearRound(dMax); if (a % 10 && a - b >= 300) return sub(a, b); }
+    // Both near round numbers: 5,002 − 1,998
+    const R1 = 1000 * ri(3, 9), R2 = 1000 * ri(1, R1 / 1000 - 1);
+    return sub(R1 + ri(1, 9), R2 - ri(1, Math.max(dMax * 2, 4)));
+  }
+
+  const GEN = {
+    carry: {
+      3() {
+        if (chance(0.3)) for (;;) { const a = ri(12, 89), b = ri(3, 9); if (a % 10 + b >= 10 && a + b <= 99) return chance(0.2) ? add(b, a) : add(a, b); } // 47 + 8
+        for (;;) { const a = ri(12, 79), b = ri(12, 79); if (a % 10 + b % 10 >= 10 && a + b <= 99) return add(a, b); } // 38 + 27
+      },
+      4() {
+        const k = Math.random();
+        if (k < 0.34) for (;;) { const a = 10 * ri(12, 89), b = 10 * ri(12, 89); if (dig(a, 10) + dig(b, 10) >= 10 && a + b <= 1100) return add(a, b); } // 650 + 380
+        if (k < 0.67) for (;;) { const a = ri(102, 989), b = ri(13, 89); if (a % 10 + b % 10 >= 10 && a + b <= 1090) return add(a, b); } // 367 + 48
+        for (;;) { const a = ri(101, 899), b = ri(101, 899); if (a % 10 && b % 10 && carries(a, b) === 1 && a + b <= 999) return add(a, b); } // 245 + 136
+      },
+      5() {
+        for (;;) { const a = 10 * ri(101, 899), b = 100 * ri(10, 89); if (b % 1000 && dig(a, 100) + dig(b, 100) >= 10 && a + b <= 9990) return either(a, b); } // 3,450 + 2,600
+      },
+      6() {
+        for (;;) { const a = ri(1001, 8999), b = chance(0.7) ? ri(1001, 8999) : ri(101, 999); if (a + b <= 9999 && carries(a, b) >= 2) return either(a, b); } // 4,738 + 2,869
+      }
+    },
+    borrow: {
+      3() {
+        if (chance(0.3)) for (;;) { const a = ri(21, 99), b = ri(3, 9); if (a % 10 < b) return sub(a, b); } // 53 − 7
+        for (;;) { const a = ri(31, 98), b = ri(12, 89); if (a % 10 < b % 10 && a - b >= 10) return sub(a, b); } // 63 − 28
+      },
+      4() {
+        const k = Math.random();
+        if (k < 0.34) for (;;) { const a = 10 * ri(21, 110), b = 10 * ri(11, 89); if (dig(a, 10) < dig(b, 10) && a - b >= 50) return sub(a, b); } // 720 − 450, 1,030 − 450
+        if (k < 0.67) for (;;) { const a = ri(112, 999), b = ri(13, 89); if (a % 10 < b % 10 && a - b >= 100) return sub(a, b); } // 524 − 37
+        for (;;) { const a = ri(300, 999), b = ri(101, 899); if ((a % 10 || b % 10) && borrows(a, b) === 1 && a - b >= 100) return sub(a, b); } // 562 − 238
+      },
+      5() {
+        for (;;) { const a = 10 * ri(201, 999), b = 100 * ri(10, 89); if (b % 1000 && dig(a, 100) < dig(b, 100) && a - b >= 300) return sub(a, b); } // 6,240 − 1,700
+      },
+      6() {
+        if (chance(0.3)) for (;;) { // across zeros: 6,003 − 2,457
+          const a = 1000 * ri(3, 9) + [ri(1, 9), 10 * ri(1, 9), 100 * ri(1, 9) + ri(1, 9)][ri(0, 2)];
+          const b = ri(1001, a - 300);
+          if (borrows(a, b) >= 2) return sub(a, b);
+        }
+        for (;;) { const a = ri(2000, 9999), b = chance(0.75) ? ri(1001, a - 200) : ri(101, 999); if (borrows(a, b) >= 2 && a - b >= 200) return sub(a, b); } // 7,345 − 2,768
+      }
+    },
+    bonds: {
+      3() { let x; do x = ri(11, 89); while (x % 10 === 0); return bond(100, x); },          // 100 − 63
+      4() { let x; do x = 5 * ri(21, 179); while (x % 100 === 0); return bond(1000, x); },   // 1,000 − 375
+      5() { let x; do x = 10 * ri(101, 899); while (x % 100 === 0); return bond(10000, x); }, // 10,000 − 3,740
+      6() { let x; do x = ri(1001, 8999); while (x % 10 === 0); return bond(10000, x); }     // 10,000 − 4,738
+    },
+    countup: {
+      4() { const M = 100 * ri(2, 10); return sub(M + ri(1, 9), M - ri(1, 19)); },          // 702 − 698
+      5() {
+        let M;
+        if (chance(0.5)) M = 1000 * ri(2, 9); else { let k; do k = ri(11, 99); while (k % 10 === 0); M = 100 * k; }
+        return sub(M + ri(1, 30), M - ri(1, 30));                                            // 5,002 − 4,987
+      },
+      6() {                                                                                  // 7,012 − 6,895
+        for (;;) { const M = 1000 * ri(2, 9), a = M + ri(1, 80), b = M - ri(5, 150); if (a % 10 && b % 10) return sub(a, b); }
+      }
+    },
+    adjust: {
+      5() { return roundAdjust(2); },  // 3,456 + 1,999
+      6() { return roundAdjust(4); }   // 8,315 − 3,997
+    },
+    missing: {
+      6() {
+        const k = ri(0, 3);
+        for (;;) {
+          if (k < 2) { const a = ri(1001, 6999), b = ri(101, 9999 - a); if (carries(a, b) >= 1) return missAdd(a, b, k === 0); }
+          else { const a = ri(2000, 9999), b = ri(101, a - 101); if (borrows(a, b) >= 1) return missSub(a, b, k === 2); }
+        }
+      }
+    }
+  };
+
+  AS.line = L => AS.levels[L].skill;
+  AS.factStats = (a, b) => factBand(data.g.addsub.facts[`${a}+${b}`]);
+  // Skills boxes look back over the last 10 rounds at that level
+  AS.skillStats = (id, L) => {
+    const g = data.g.addsub, rec = g.skills[`${id}@${L}`], n = roundsAt(g, L);
+    const s = summarise(rec ? rec.r.filter(x => x[3] > n - STAR_ROUNDS) : []);
+    s.rounds = Math.min(n, STAR_ROUNDS);
+    return s;
+  };
+  AS.factQ = (L, a, b, minus) => {
+    const q = minus ? { t: [a + b, MINUS, a], ans: b } : { t: [a, '+', b], ans: a + b };
+    return Object.assign(q, {
+      game: 'addsub', kind: 'facts', key: `${a}+${b}`, level: L, form: minus ? 1 : 0,
+      par: THINK.facts[L] * 1000 + (minus ? SUB_EXTRA_MS : 0) + TAP_MS * String(q.ans).length
+    });
+  };
+  AS.skillQ = (L, id) => {
+    const q = GEN[id][L]();
+    return Object.assign(q, {
+      game: 'addsub', kind: 'skills', key: `${id}@${L}`, level: L, skill: id,
+      par: THINK[id][L] * 1000 + TAP_MS * String(q.ans).length
+    });
+  };
+  AS.pickRound = L => {
+    const g = data.g.addsub;
+    if (L <= 2) {
+      const recOf = ([a, b]) => g.facts[`${a}+${b}`];
+      const { repeats, rest } = pickFacts(FACT_CELLS[L], ([a, b]) => AS.factStats(a, b), c => { const r = recOf(c); return r ? r.t : 0; });
+      return withForms(repeats, rest, recOf).map(p => AS.factQ(L, p.c[0], p.c[1], p.form));
+    }
+    // Every skill at this level once, then the rest leaning towards the weak ones
+    const W = { none: 3, red: 5, amber: 2, green: 1 };
+    const ids = skillsAt(L);
+    const weights = ids.map(id => W[AS.skillStats(id, L).band]);
+    const list = ids.slice();
+    while (list.length < QUESTIONS) list.push(weightedSample(ids, weights, 1)[0]);
+    const seen = new Set();
+    return shuffle(list).map(id => {
+      let q = AS.skillQ(L, id);
+      for (let i = 0; i < 30 && seen.has(q.t.join(' ')); i++) q = AS.skillQ(L, id);
+      seen.add(q.t.join(' '));
+      return q;
+    });
+  };
+  // Stars. Levels 1-2: every square green, each tried twice. Levels 3-6: 10 rounds played, every skill green over them.
+  AS.starProgress = L => {
+    if (L <= 2) {
+      const cells = FACT_CELLS[L];
+      const done = cells.filter(([a, b]) => AS.factStats(a, b).band === 'green').length;
+      return { done, total: cells.length, ready: done === cells.length };
+    }
+    const ids = skillsAt(L), n = roundsAt(data.g.addsub, L);
+    const done = ids.filter(id => AS.skillStats(id, L).band === 'green').length;
+    return { done, total: ids.length, rounds: n, ready: n >= STAR_ROUNDS && done === ids.length };
+  };
+  AS.starText = (L, p) => {
+    if (L <= 2) return `Star: turn every square green. ${p.total - p.done} to go.`;
+    const more = STAR_ROUNDS - p.rounds;
+    if (more > 0) return `Star: play ${more} more ${more === 1 ? 'round' : 'rounds'} with every skill green. ${p.done} of ${p.total} green now.`;
+    return `Star: turn every skill green over your last ${STAR_ROUNDS} rounds. ${p.total - p.done} to go.`;
+  };
+  AS.intro = L => [
+    'Answer each sum as fast as you can. Quick answers score full points and turn their square green on your heat map.',
+    'A right answer scores 50, plus up to 50 for speed. Slow answers turn squares amber, and very slow or wrong ones go red.',
+    goalSentence(L)
+  ];
+  AS.whatsNew = L => {
+    const l = AS.levels[L];
+    return `Next up: ${l.skill.charAt(0).toLowerCase() + l.skill.slice(1)}, like ${l.eg[0]} and ${l.eg[1]}.<span>${goalSentence(L)}</span>`;
+  };
+  // Levels 1-2 show the facts map, levels 3-6 the skills map, with the other levels' squares dimmed
+  AS.renderGrid = L => {
+    const g = data.g.addsub, bands = [];
+    if (L <= 2) {
+      let html = '<span class="hd corner">+</span>';
+      for (let b = 1; b <= 10; b++) html += `<span class="hd" data-col="${b}">${b}</span>`;
+      for (let a = 1; a <= 10; a++) {
+        html += `<span class="hd" data-row="${a}">${a}</span>`;
+        for (let b = 1; b <= 10; b++) {
+          const lv = factLevel(a, b), band = AS.factStats(a, b).band;
+          if (lv === L) bands.push(band);
+          html += `<button class="sq c-${band}${lv === 2 ? ' l2' : ''}${lv !== L ? ' dim' : ''}" data-k="${a}+${b}" data-r="${a}" data-c="${b}" data-a="${a}" data-b="${b}" aria-label="${a} plus ${b}"></button>`;
+        }
+      }
+      return {
+        cls: 'fgrid as', html, bands, once: true,
+        hint: 'Tap a square to see its time.'
+      };
+    }
+    let html = '<span class="sh first">Level</span>';
+    for (let k = 3; k <= 6; k++) html += `<span class="sh${k === L ? ' on' : ''}" data-col="${k}">${k}</span>`;
+    for (const sk of SKILLS) {
+      html += `<span class="sl" data-row="${sk.id}">${sk.name}</span>`;
+      for (let k = 3; k <= 6; k++) {
+        if (!THINK[sk.id][k]) { html += '<span class="na" aria-hidden="true">·</span>'; continue; }
+        const band = AS.skillStats(sk.id, k).band;
+        if (k === L) bands.push(band);
+        html += `<button class="cell c-${band}${k !== L ? ' dim' : ''}${k > g.unlocked ? ' locked' : ''}" data-k="${sk.id}@${k}" data-r="${sk.id}" data-c="${k}" data-id="${sk.id}" data-l="${k}" aria-label="${sk.name}, level ${k}"></button>`;
+      }
+    }
+    return {
+      cls: 'sgrid', html, bands, once: false,
+      hint: 'Tap a box to see its time.'
+    };
+  };
+  AS.cellInfo = el => {
+    const g = data.g.addsub;
+    if (el.classList.contains('sq')) {
+      const a = +el.dataset.a, b = +el.dataset.b, lv = factLevel(a, b), s = AS.factStats(a, b);
+      const pair = `<b>${a} + ${b}</b> and <b>${a + b} ${MINUS} ${a}</b>`;
+      if (lv > g.unlocked) return `${pair} are level ${lv} sums. Pass level ${lv - 1} to unlock them.`;
+      if (s.band === 'none') return `${pair} haven’t come up yet.`;
+      if (s.band === 'once') return `${pair} took <b class="t-green">${secs(s.shownMs)}</b> from 1 try. One more fast try turns the square green.`;
+      return `${pair} average <b class="t-${s.band}">${secs(s.shownMs)}</b> ${overText(s)}${wrongText(s)}. Full speed points under ${secs(s.avgPar)}.`;
+    }
+    const id = el.dataset.id, L = +el.dataset.l, sk = SKILLS.find(x => x.id === id), s = AS.skillStats(id, L);
+    const name = `<b>${sk.name}, level ${L}</b> (like ${sk.eg[L]})`;
+    if (L > g.unlocked) return `${name} comes in at level ${L}.`;
+    if (s.band === 'none') return `${name} hasn’t come up yet.`;
+    const n = s.tries === 1 ? '1 try' : `${s.tries} tries`;
+    const span = s.rounds >= 1
+      ? `over your last ${s.rounds === 1 ? 'round' : s.rounds + ' rounds'} (${n}${s.wrong ? `, ${s.wrong} wrong` : ''})`
+      : `from ${n} in an unfinished round`;
+    return `${name} averages <b class="t-${s.band}">${secs(s.shownMs)}</b> ${span}. Full speed points under about ${secs(s.avgPar)}.`;
+  };
+  AS.mini = L => {
+    let html = '';
+    if (L <= 2) {
+      for (let a = 1; a <= 10; a++) for (let b = 1; b <= 10; b++) html += `<i class="c-${AS.factStats(a, b).band}"></i>`;
+      const cells = FACT_CELLS[L];
+      const green = cells.filter(([a, b]) => AS.factStats(a, b).band === 'green').length;
+      return { cls: 'mini facts', html, text: `${green} of ${cells.length} squares green` };
+    }
+    for (const sk of SKILLS) for (let k = 3; k <= 6; k++) html += THINK[sk.id][k] ? `<i class="c-${AS.skillStats(sk.id, k).band}"></i>` : '<i class="na"></i>';
+    const ids = skillsAt(L);
+    const green = ids.filter(id => AS.skillStats(id, L).band === 'green').length;
+    return { cls: 'mini skills', html, text: `${green} of ${ids.length} skills green` };
+  };
+  // The level-up screen lights up the part of the map that's just opened
+  AS.celebrationMap = (from, to) => {
+    const cells = [];
+    if (to <= 2) {
+      for (let a = 1; a <= 10; a++) for (let b = 1; b <= 10; b++) {
+        const band = AS.factStats(a, b).band;
+        cells.push({ from: factLevel(a, b) === to ? 'lock' : band, to: band, delay: (a + b - 2) * 40 });
+      }
+      return { cols: 10, cells };
+    }
+    SKILLS.forEach((sk, row) => {
+      for (let L = 3; L <= 6; L++) {
+        if (!THINK[sk.id][L]) { cells.push({ from: 'na', to: 'na' }); continue; }
+        const band = AS.skillStats(sk.id, L).band;
+        cells.push({ from: L === to ? 'lock' : band, to: band, delay: row * 90 });
+      }
+    });
+    return { cols: 4, cells };
+  };
+  // The star screen fills in the level's finished squares or skills, with the rest of the map faded
+  AS.starMap = L => {
+    const cells = [];
+    if (L <= 2) {
+      for (let a = 1; a <= 10; a++) for (let b = 1; b <= 10; b++) {
+        cells.push(factLevel(a, b) === L ? { from: 'none', to: AS.factStats(a, b).band, delay: (a + b - 2) * 40 } : { from: 'lock', to: 'lock' });
+      }
+      return { cols: 10, cells };
+    }
+    SKILLS.forEach((sk, row) => {
+      for (let k = 3; k <= 6; k++) {
+        if (!THINK[sk.id][k]) cells.push({ from: 'na', to: 'na' });
+        else cells.push(k === L ? { from: 'none', to: AS.skillStats(sk.id, k).band, delay: row * 90 } : { from: 'lock', to: 'lock' });
+      }
+    });
+    return { cols: 4, cells };
+  };
+  AS.GEN = GEN;
+  AS.THINK = THINK;
+  AS.FACT_CELLS = FACT_CELLS;
+  AS.SKILLS = SKILLS;
+
+  const GAMES = { times: TT, addsub: AS };
+
+  /* ---------- How it works ---------- */
+  const MAN_PLAY = '<h3>Playing</h3><p>Tap GO for ten sums. Type each answer on the keypad. It’s marked as soon as the last digit goes in, so there’s no enter button.</p>';
+  const MAN_SAVED = '<h3>Your progress</h3><p>Progress is saved on this device only. Use Back up on the Progress screen now and then to keep a copy.</p>';
+  const manMoving = () => `<h3>Moving up</h3><p>Score ${TARGET} or more ${WORDS[STREAK]} rounds in a row to unlock the next level. Stopping a round after you’ve started answering breaks the run.</p><p>Pass level 6 to become a maths superstar ${emo('🌟')}</p>`;
+  const manKey = () => '<div class="man-key"><span><i class="c-green"></i>Green: fast, full speed points</span><span><i class="c-once"></i>Dark green: fast, but only tried once</span><span><i class="c-amber"></i>Amber: getting there</span><span><i class="c-red"></i>Red: slow or wrong</span></div>';
+  const manLevels = rows => `<h3>The levels</h3><div class="man-levels">${rows.map((r, i) => `<b>${i + 1}</b><span>${r}</span>`).join('')}</div>`;
+  TT.manual = () => MAN_PLAY
+    + '<h3>Points</h3><p>A right answer scores 50, plus up to 50 for speed. Answer inside the level’s time for full points. Slower answers score less, down to 50 at three times the level’s time. A wrong answer scores 0.</p>'
+    + manMoving()
+    + manLevels([1, 2, 3, 4, 5, 6].map(L => `${TT.levels[L].name} <em>· under ${plain(TT.levels[L].par)}s</em>`))
+    + `<h3>Progress and stars</h3><p>Each level has its own heat map. A square shows your last five tries at that level.</p>${manKey()}`
+    + '<p>Division counts towards its times table: 63 ÷ 9 is on the 7 × 9 square. Sums you find hard come back more often.</p>'
+    + `<p>Once you’ve passed a level, come back any time to turn every square green, each tried at least twice, and earn its star ${emo('⭐')}. Pick a level on the Progress screen to play it again.</p>`
+    + MAN_SAVED;
+  AS.manual = () => MAN_PLAY
+    + '<h3>Points</h3><p>A right answer scores 50, plus up to 50 for speed. Each sum has its own time for full points: harder sums and longer answers get longer. Slower answers score less, down to 50. A wrong answer scores 0.</p>'
+    + manMoving()
+    + manLevels([1, 2, 3, 4, 5, 6].map(L => `${AS.levels[L].name} <em>· ${AS.levels[L].eg.slice(0, 2).join(', ')}</em>`))
+    + '<h3>Progress and stars</h3><p>Levels 1 and 2 use the facts map. Each square is an add and its take-away, so 9 + 6 and 15 − 9 share a square. It shows your last five tries.</p>'
+    + `<p>Levels 3 to 6 use the skills map: one box for each kind of sum, looking back over your last ${STAR_ROUNDS} rounds at that level.</p>${manKey()}`
+    + `<p>Once you’ve passed a level, come back any time to earn its star ${emo('⭐')}. At levels 1 and 2, turn every square green, each tried at least twice. At levels 3 to 6, play ${STAR_ROUNDS} rounds and turn every skill green. Sums you find hard come back more often.</p>`
+    + MAN_SAVED;
+
+  /* ---------- Arcade: sums, points and lives ---------- */
+  // All four operations mixed, getting harder every ten sums. Arcade answers never touch the heat maps or levels.
+  const ARC_LIVES = 3;              // lives at the start
+  const ARC_MAX_LIVES = 5;          // most lives you can hold
+  const ARC_STAGE_LEN = 10;         // sums per stage
+  const ARC_REMATCH_EVERY = 7;      // every 7th sum is a gold rematch, when there's one to play
+  const ARC_REMATCH_GAP = 6;        // a rematch is never one of the last 6 sums
+  const ARC_RECENT = 12;            // other sums don't repeat within 12
+  const ARC_TOP = 10;               // size of the high score table
+  const ARC_LIFE_AT = [10000, 25000, 50000, 100000]; // extra lives here, then each time the score doubles
+  const ARC_MISS_KEEP = 30;         // wrong or slow sums remembered for rematches
+  const ARC_STAGES = [null, 'Warm up', 'Within 20', 'Two-digit', 'All the tables', 'Three-digit', 'Into the thousands', 'Thousands', 'Brutal'];
+  // Times and divide at each stage: which tables (and how often), up to what, and how much division
+  const ARC_TABLES = [null,
+    { t: [2, 5, 10], max: 10, div: 0.25 },
+    { t: [2, 3, 4, 5, 10], max: 10, div: 0.4 },
+    { t: [2, 3, 4, 5, 6, 7, 8, 9, 10], w: [1, 2, 2, 1, 3, 3, 3, 3, 1], max: 10, div: 0.5 },
+    { t: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], w: [1, 2, 2, 1, 3, 3, 3, 3, 1, 2, 3], max: 12, div: 0.5 }
+  ];
+  const ARC_SKILL_STAGE = { 3: 3, 4: 6, 5: 7, 6: 8 }; // red skills boxes from adding levels 3-6 come back from these stages
+  const arcStageName = S => (S < ARC_STAGES.length ? ARC_STAGES[S] : 'Faster!');
+  const arcBase = S => 50 * (S + 1);   // a fast right answer: 100 at stage 1, 50 more each stage
+  const arcMult = run => (run >= 20 ? 4 : run >= 10 ? 3 : run >= 5 ? 2 : 1);
+  const arcSpeedUp = S => (S > 8 ? Math.max(0.6, Math.pow(0.9, S - 8)) : 1); // after stage 8 the clock runs 10% faster each stage
+  const arcTTPar = S => (S <= 2 ? 4000 : S <= 4 ? 3000 : S <= 6 ? 2500 : 2000);
+  const lifeAt = k => (k < ARC_LIFE_AT.length ? ARC_LIFE_AT[k] : ARC_LIFE_AT[ARC_LIFE_AT.length - 1] * Math.pow(2, k - ARC_LIFE_AT.length + 1));
+  // Full points up to par, fading to half at 3 x par. Then the multiplier, and double for a rematch.
+  function arcPoints(ok, ms, par, S, mult, rematch) {
+    if (!ok) return 0;
+    const speed = Math.min(1, Math.max(0, (3 * par - ms) / (2 * par)));
+    return Math.round(arcBase(S) * (0.5 + 0.5 * speed) / 10) * 10 * mult * (rematch ? 2 : 1);
+  }
+  const bigNum = q => q.ans >= 1000 || q.t.some(x => typeof x === 'number' && x >= 1000);
+  const keyOf = t => t.join(' ');
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  function arcTimes(S) {
+    const T = ARC_TABLES[Math.min(S, 4)];
+    const t = T.w ? weightedSample(T.t, T.w, 1)[0] : pick(T.t), m = ri(2, T.max), p = arcTTPar(S);
+    if (chance(T.div)) return { t: [t * m, DIVIDE, t], ans: m, p };
+    return chance(0.5) ? { t: [t, TIMES, m], ans: t * m, p } : { t: [m, TIMES, t], ans: t * m, p };
+  }
+  const fromAS = q => ({ t: q.t, ans: q.ans, p: q.par });
+  // Adding and taking away borrow the levels' sums. Nothing reaches 1,000 before stage 6.
+  function arcAddSub(S) {
+    if (S <= 2) { const [a, b] = pick(FACT_CELLS[S]); return fromAS(AS.factQ(S, a, b, chance(0.5))); }
+    const L = S <= 4 ? 3 : S <= 6 ? 4 : S === 7 ? 5 : chance(Math.min(0.7, 0.3 + 0.1 * (S - 8))) ? 6 : 5;
+    const small = S === 5; // stage 5: three-digit sums only
+    const ids = skillsAt(L).filter(id => !(small && id === 'bonds'));
+    for (let i = 0; i < 100; i++) {
+      const q = AS.skillQ(L, pick(ids));
+      if (!small || !bigNum(q)) return fromAS(q);
+    }
+    return fromAS(AS.skillQ(3, 'carry'));
+  }
+  // Half adding and taking away, half times and divide, with no repeats of recent sums
+  function arcQ(S, recent = []) {
+    let q;
+    for (let i = 0; i < 30; i++) {
+      q = chance(0.5) ? arcTimes(S) : arcAddSub(S);
+      if (!recent.includes(keyOf(q.t))) break;
+    }
+    return Object.assign(q, { par: q.p * arcSpeedUp(S), st: S, rematch: false });
+  }
+  // Red squares and boxes from the heat maps, ready to come back as rematches
+  function arcReds(S) {
+    const out = [], tg = data.g.times, ag = data.g.addsub, TL = tg.sel;
+    if (S >= 2) for (const [a, b] of TT_CELLS) {
+      if (a < 2 || b < 2 || (S <= 3 && (a > 10 || b > 10)) || TT.stats(a, b, TL).band !== 'red') continue;
+      out.push(() => {
+        const f = weakForm(tg.facts[ttKey(a, b, TL)]), div = f === null ? chance(0.5) : f, p = arcTTPar(S);
+        return div ? { t: [a * b, DIVIDE, b], ans: a, p } : { t: [a, TIMES, b], ans: a * b, p };
+      });
+    }
+    for (const L of [1, 2]) {
+      if (S < L) continue;
+      for (const [a, b] of FACT_CELLS[L]) {
+        if (AS.factStats(a, b).band !== 'red') continue;
+        out.push(() => { const f = weakForm(ag.facts[`${a}+${b}`]); return fromAS(AS.factQ(L, a, b, f === null ? chance(0.5) : f)); });
+      }
+    }
+    for (let L = 3; L <= Math.min(6, ag.unlocked); L++) {
+      if (S < ARC_SKILL_STAGE[L]) continue;
+      for (const id of skillsAt(L)) if (AS.skillStats(id, L).band === 'red') out.push(() => fromAS(AS.skillQ(L, id)));
+    }
+    return out;
+  }
+  // A gold rematch: a sum she got wrong or slow in arcade (more often), or a red from her heat maps
+  function arcRematch(S, recent = []) {
+    const fresh = q => !recent.slice(-ARC_REMATCH_GAP).includes(keyOf(q.t));
+    const misses = data.arcade.miss.filter(m => m.st <= S && fresh(m)), reds = arcReds(S);
+    const fromMiss = () => { if (!misses.length) return null; const m = pick(misses); return { t: m.t.slice(), ans: m.ans, p: m.p, st: m.st }; };
+    const fromReds = () => {
+      for (let i = 0; i < 10 && reds.length; i++) { const c = pick(reds)(); if (fresh(c)) return Object.assign(c, { st: S }); }
+      return null;
+    };
+    const q = chance(0.6) ? fromMiss() || fromReds() : fromReds() || fromMiss();
+    return q && Object.assign(q, { par: q.p * arcSpeedUp(S), rematch: true });
+  }
+  function arcRemember(q) {
+    const k = keyOf(q.t), list = data.arcade.miss.filter(m => keyOf(m.t) !== k);
+    list.push({ t: q.t.slice(), ans: q.ans, p: Math.round(q.p), st: q.st });
+    data.arcade.miss = list.slice(-ARC_MISS_KEEP);
+  }
+  function arcForget(q) {
+    const k = keyOf(q.t);
+    data.arcade.miss = data.arcade.miss.filter(m => keyOf(m.t) !== k);
+  }
+
+  // Works out a stored sum's answer, so saved rematches can be checked when loading
+  const OPS = ['+', MINUS, TIMES, DIVIDE];
+  function solveT(t) {
+    const n = x => Number.isInteger(x) && x >= 0 && x <= 99999;
+    if (!Array.isArray(t)) return null;
+    let r = null;
+    if (t.length === 3 && n(t[0]) && n(t[2]) && OPS.includes(t[1])) {
+      const [a, op, b] = t;
+      r = op === '+' ? a + b : op === MINUS ? a - b : op === TIMES ? a * b : (b > 0 && a % b === 0 ? a / b : null);
+    } else if (t.length === 5 && t[3] === '=' && n(t[4]) && (t[1] === '+' || t[1] === MINUS)) {
+      const [x, op, y, , z] = t;
+      if (x === '?' && n(y)) r = op === '+' ? z - y : z + y;
+      else if (y === '?' && n(x)) r = op === '+' ? z - x : x - z;
+    }
+    return r !== null && r >= 0 ? r : null;
+  }
+  const cleanInitials = s => (typeof s === 'string' ? s.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3) : '');
+  const blankArcade = () => ({ high: [], last: '', mute: false, miss: [], games: 0, intro: false, live: null });
+  function cleanArcade(s) {
+    const a = blankArcade();
+    if (!s || typeof s !== 'object') return a;
+    a.high = (Array.isArray(s.high) ? s.high : [])
+      .filter(e => e && isNum(e.s) && e.s > 0)
+      .map(e => ({ s: Math.round(e.s), i: cleanInitials(e.i) || '???', st: intIn(e.st, 1, 999, 1), d: isNum(e.d) ? e.d : 0 }))
+      .sort((x, y) => y.s - x.s)
+      .slice(0, ARC_TOP);
+    a.last = cleanInitials(s.last);
+    a.mute = s.mute === true;
+    a.miss = (Array.isArray(s.miss) ? s.miss : [])
+      .filter(m => m && isNum(m.p) && solveT(m.t) !== null && solveT(m.t) === m.ans)
+      .slice(-ARC_MISS_KEEP)
+      .map(m => ({ t: m.t.slice(), ans: m.ans, p: Math.min(60000, Math.max(500, Math.round(m.p))), st: intIn(m.st, 1, 999, 1) }));
+    a.games = intIn(s.games, 0, 1e9, 0);
+    a.intro = s.intro === true;
+    const L = s.live;
+    a.live = L && isNum(L.s) && L.s > 0 ? { s: Math.round(L.s), st: intIn(L.st, 1, 999, 1) } : null;
+    return a;
+  }
+
+  const ARC_STAGE_ROWS = [
+    ['1', 'adding and taking away within 10, the 2, 5 and 10 times tables'],
+    ['2', 'within 20, the 2, 3, 4, 5 and 10 times tables'],
+    ['3', 'two-digit sums like 38 + 27 and 63 − 28, tables up to 10 × 10'],
+    ['4', 'two-digit sums, tables up to 12 × 12'],
+    ['5', 'three-digit sums like 367 + 48 and 720 − 450'],
+    ['6', 'the first thousands: 1,000 − 375, 1,030 − 450'],
+    ['7', 'thousands: 3,450 + 2,600, 5,002 − 4,987'],
+    ['8+', 'brutal: 4,738 + 2,869, and the clock gets faster every stage']
+  ];
+  const arcManual = () => '<h3>Playing</h3><p>Answer as many sums as you can: adding, taking away, times and divide, all mixed up. Every ten sums you reach a new stage and the sums get harder. Each answer is marked as soon as the last digit goes in.</p>'
+    + `<h3>Lives</h3><p>You start with ${WORDS[ARC_LIVES]} lives. A wrong answer loses one. Taking your time never costs a life, it just scores less. You get an extra life at 10,000, 25,000, 50,000 and 100,000 points, up to ${WORDS[ARC_MAX_LIVES]} lives.</p>`
+    + '<h3>Points</h3><p>A right answer scores up to 100 at stage 1, and 50 more at each stage after that. Answer while the clock bar is green for full points. Slower answers score less, down to half once the bar runs out.</p>'
+    + `<h3>Multiplier</h3><p>Right answers in a row build a multiplier: ${TIMES}2 after 5, ${TIMES}3 after 10 and ${TIMES}4 after 20. A wrong answer resets it.</p>`
+    + '<h3>Rematches</h3><p>Every so often a gold sum comes up. It’s one you got wrong or slow before, or a red square from your heat maps. Rematches score double. Get one right quickly and it stops coming back.</p>'
+    + `<h3>The stages</h3><div class="man-levels">${ARC_STAGE_ROWS.map(r => `<b>${r[0]}</b><span>${cap(r[1]).replace(/ ([+−×]) /g, '\u00a0$1\u00a0')}</span>`).join('')}</div>`
+    + '<h3>Heat maps</h3><p>Arcade doesn’t change your levels, stars or heat maps. It’s for fun, and for high scores.</p>'
+    + '<h3>High scores</h3><p>The top ten scores are saved on this device only. Ending a game early still counts your score. Tap the speaker on the Arcade screen to turn sound on or off.</p>'
+    + '<p><button id="clearHigh" class="btn-small danger">Clear high scores</button></p>';
+
+  /* ---------- Saved progress ---------- */
+  // Uses the phone's local storage. Views that block storage fall back to memory.
   const store = (() => {
-    let ls = null, mem = null;
+    let ls = null;
+    const mem = {};
     try {
-      const probe = '__tt_probe__';
+      const probe = '__mm_probe__';
       window.localStorage.setItem(probe, '1');
       window.localStorage.removeItem(probe);
       ls = window.localStorage;
     } catch (e) { ls = null; }
     return {
       persistent: !!ls,
-      load() {
+      get(key) {
         try {
-          const raw = ls ? ls.getItem(STORE_KEY) : mem;
+          const raw = ls ? ls.getItem(key) : mem[key];
           return raw ? JSON.parse(raw) : null;
         } catch (e) { return null; }
       },
-      save(obj) {
-        mem = JSON.stringify(obj);
-        if (ls) { try { ls.setItem(STORE_KEY, mem); } catch (e) { /* storage full or blocked */ } }
+      set(key, obj) {
+        const raw = JSON.stringify(obj);
+        mem[key] = raw;
+        if (ls) { try { ls.setItem(key, raw); } catch (e) { /* storage full or blocked */ } }
       }
     };
   })();
 
-  const blank = () => ({ v: 2, level: 1, stars: 0, superstar: false, seenIntro: false, facts: {}, sessions: [] });
-  const isNum = x => typeof x === 'number' && isFinite(x);
-  const levelOf = x => (Number.isInteger(x) && x >= 1 && x <= LEVELS.length) ? x : 1;
+  const blankLevel = () => ({ s: [], n: 0, best: 0, passed: false, star: false });
+  const blankGame = () => ({ unlocked: 1, sel: 1, intro: false, superstar: false, levels: {}, facts: {}, skills: {} });
+  const blank = () => ({ v: 3, last: null, g: { times: blankGame(), addsub: blankGame() }, arcade: blankArcade() });
+  const roundsAt = (g, L) => (g.levels[L] ? g.levels[L].n : 0);
+  const levelRec = (g, L) => g.levels[L] || (g.levels[L] = blankLevel());
 
-  // Rebuilds data from storage or a backup file, dropping anything malformed.
-  // Data from the first version (different levels) carries over into Level 1.
-  function clean(d) {
-    if (!d || typeof d !== 'object' || !d.facts || typeof d.facts !== 'object') return null;
-    const legacy = d.v !== 2;
-    const out = blank();
-    if (!legacy) {
-      out.level = levelOf(d.level);
-      out.stars = isNum(d.stars) ? Math.max(0, Math.min(Math.floor(d.stars), 99)) : 0;
-      out.superstar = d.superstar === true;
-      out.seenIntro = d.seenIntro === true;
-    }
-    for (let a = 1; a <= 12; a++) {
-      for (let b = 1; b <= 12; b++) {
-        const key = a + 'x' + b;
-        const f = d.facts[key];
-        if (!f || !Array.isArray(f.r)) continue;
-        const r = f.r
-          .filter(x => Array.isArray(x) && isNum(x[0]) && x[0] >= 0)
-          .slice(-KEEP)
-          .map(x => [Math.round(x[0]), x[1] ? 1 : 0, legacy ? 1 : levelOf(x[2]), x[3] ? 1 : 0]);
-        if (!r.length) continue;
-        const n = Math.max(isNum(f.n) ? f.n : 0, r.length);
-        const c = Math.min(Math.max(isNum(f.c) ? f.c : 0, 0), n);
-        out.facts[key] = { n, c, r, t: isNum(f.t) ? f.t : 0 };
-      }
-    }
-    if (Array.isArray(d.sessions)) {
-      out.sessions = d.sessions
-        .filter(s => s && isNum(s.d) && isNum(s.s) && isNum(s.ms))
-        .slice(-1000)
-        .map(s => ({ d: s.d, s: s.s, ms: s.ms, l: legacy ? 1 : levelOf(s.l), p: s.p ? 1 : 0 }));
+  // Rebuilds saved progress, dropping anything malformed
+  function cleanTries(r, keep, rounds) {
+    return (Array.isArray(r) ? r : [])
+      .filter(x => Array.isArray(x) && isNum(x[0]) && x[0] >= 0 && isNum(x[2]) && x[2] > 0)
+      .slice(-keep)
+      .map(x => [Math.round(x[0]), x[1] ? 1 : 0, Math.round(x[2]), rounds ? (isNum(x[3]) ? Math.max(0, Math.round(x[3])) : 0) : (x[3] ? 1 : 0)]);
+  }
+  function cleanLevels(src) {
+    const out = {};
+    for (let n = 1; n <= 6; n++) {
+      const l = src && src[n];
+      if (!l || typeof l !== 'object') continue;
+      const s = (Array.isArray(l.s) ? l.s : []).filter(isNum).map(x => (x < 0 ? -1 : Math.min(1000, Math.round(x)))).slice(-50);
+      const played = isNum(l.n) ? Math.max(0, Math.round(l.n)) : s.filter(x => x >= 0).length;
+      out[n] = { s, n: played, best: Math.max(0, ...s, isNum(l.best) ? Math.round(l.best) : 0), passed: !!l.passed, star: !!l.star };
     }
     return out;
   }
-
-  let data = clean(store.load()) || blank();
-  const save = () => store.save(data);
-
-  /* ---------- Scoring ---------- */
-  const lvl = () => LEVELS[data.level - 1];
-  const bandOf = ms => ms < lvl().green ? 'green' : ms < lvl().red ? 'amber' : 'red';
-
-  // How a square is doing, from its last 5 answers at the current level only
-  function stats(a, b) {
-    const f = data.facts[a + 'x' + b];
-    if (!f || !f.r.length) return { band: 'none' };
-    const recent = f.r.filter(x => x[2] === data.level).slice(-ROLLING);
-    if (!recent.length) return { band: 'amber', fresh: true }; // known from an earlier level, not yet won back
-    let total = 0;
-    for (const [ms, ok] of recent) {
-      total += Math.min(ok ? ms : Math.max(ms, lvl().red), MAX_COUNTED); // a wrong answer counts as red
+  const TT_KEY = /^(1[0-2]|[1-9])x(1[0-2]|[1-9])@[1-6]$/;
+  const AS_FACT_KEY = /^(10|[1-9])\+(10|[1-9])$/;
+  const AS_SKILL_KEY = /^([a-z]+)@([3-6])$/;
+  function cleanGame(id, s) {
+    const g = blankGame();
+    if (!s || typeof s !== 'object') return g;
+    g.unlocked = intIn(s.unlocked, 1, 6, 1);
+    g.sel = intIn(s.sel, 1, g.unlocked, 1);
+    g.intro = s.intro === true;
+    g.superstar = s.superstar === true;
+    g.levels = cleanLevels(s.levels);
+    for (const [k, v] of Object.entries(s.facts && typeof s.facts === 'object' ? s.facts : {})) {
+      if (!(id === 'times' ? TT_KEY : AS_FACT_KEY).test(k) || !v) continue;
+      const r = cleanTries(v.r, KEEP, false);
+      if (r.length) g.facts[k] = { r, t: isNum(v.t) ? v.t : 0 };
     }
-    const avg = total / recent.length;
-    return { band: bandOf(avg), avg, tries: recent.length, wrong: recent.filter(x => !x[1]).length };
+    if (id === 'addsub') {
+      for (const [k, v] of Object.entries(s.skills && typeof s.skills === 'object' ? s.skills : {})) {
+        const m = AS_SKILL_KEY.exec(k);
+        if (!m || m[1] === 'facts' || !THINK[m[1]] || !THINK[m[1]][m[2]] || !v) continue;
+        const r = cleanTries(v.r, KEEP_SKILL, true);
+        if (r.length) g.skills[k] = { r };
+      }
+    }
+    return g;
+  }
+  function clean(d) {
+    if (!d || typeof d !== 'object' || d.v !== 3 || !d.g || typeof d.g !== 'object') return null;
+    return {
+      v: 3, last: GAMES[d.last] ? d.last : null,
+      g: { times: cleanGame('times', d.g.times), addsub: cleanGame('addsub', d.g.addsub) },
+      arcade: cleanArcade(d.arcade)
+    };
   }
 
+  // Progress from the Times Tables app: her level, her heat map at each level, and superstar.
+  // Earlier levels count as passed. The new rules get explained on her next round.
+  function migrateTimes(d) {
+    if (!d || typeof d !== 'object' || !d.facts || typeof d.facts !== 'object') return null;
+    const legacy = d.v !== 2;
+    const level = legacy ? 1 : intIn(d.level, 1, 6, 1);
+    const g = blankGame();
+    g.unlocked = level;
+    g.sel = level;
+    g.superstar = !legacy && d.superstar === true;
+    for (let L = 1; L < level; L++) g.levels[L] = Object.assign(blankLevel(), { passed: true });
+    if (g.superstar) g.levels[6] = Object.assign(blankLevel(), { passed: true });
+    for (const [a, b] of TT_CELLS) {
+      const f = d.facts[a + 'x' + b];
+      if (!f || !Array.isArray(f.r)) continue;
+      for (const x of f.r) {
+        if (!Array.isArray(x) || !isNum(x[0]) || x[0] < 0) continue;
+        const L = legacy ? 1 : intIn(x[2], 1, 6, 1);
+        const rec = g.facts[ttKey(a, b, L)] || (g.facts[ttKey(a, b, L)] = { r: [], t: 0 });
+        rec.r.push([Math.round(x[0]), x[1] ? 1 : 0, TT.levels[L].par, !legacy && x[3] ? 1 : 0]);
+        if (rec.r.length > KEEP) rec.r.splice(0, rec.r.length - KEEP);
+        rec.t = isNum(f.t) ? f.t : 0;
+      }
+    }
+    return g;
+  }
+  // Progress from the adding and taking away prototype
+  function migrateAddsub(d) {
+    if (!d || typeof d !== 'object' || !(d.facts || d.skills || d.levels)) return null;
+    return cleanGame('addsub', { unlocked: d.unlocked, sel: d.sel, levels: d.levels, facts: d.facts, skills: d.skills });
+  }
+
+  let data = blank();
+  const save = () => store.set(STORE_KEY, data);
+  // Stars for maps already finished, after bringing progress across
+  function awardStars(id) {
+    const game = GAMES[id], g = data.g[id];
+    for (let L = 1; L <= g.unlocked; L++) if (game.starProgress(L).ready) levelRec(g, L).star = true;
+  }
+  (function boot() {
+    const saved = clean(store.get(STORE_KEY));
+    if (saved) { data = saved; return; }
+    // First run: bring across progress from the separate apps, leaving their saved copies untouched
+    const tt = migrateTimes(store.get(OLD_TIMES_KEY));
+    const as = migrateAddsub(store.get(OLD_ADDSUB_KEY));
+    if (tt) { data.g.times = tt; awardStars('times'); }
+    if (as) { data.g.addsub = as; awardStars('addsub'); }
+    if (tt || as) save();
+  })();
+
   function record(q, ms, ok) {
-    const key = q.a + 'x' + q.b;
-    const f = data.facts[key] || (data.facts[key] = { n: 0, c: 0, r: [], t: 0 });
-    f.n += 1;
-    if (ok) f.c += 1;
-    f.r.push([Math.round(ms), ok ? 1 : 0, data.level, q.div ? 1 : 0]);
-    if (f.r.length > KEEP) f.r.splice(0, f.r.length - KEEP);
-    f.t = Date.now();
+    const g = data.g[q.game];
+    const t = [Math.round(ms), ok ? 1 : 0, Math.round(q.par)];
+    if (q.kind === 'skills') {
+      const rec = g.skills[q.key] || (g.skills[q.key] = { r: [] });
+      t.push(roundsAt(g, q.level) + 1); // the round this try belongs to
+      rec.r.push(t);
+      if (rec.r.length > KEEP_SKILL) rec.r.splice(0, rec.r.length - KEEP_SKILL);
+    } else {
+      const rec = g.facts[q.key] || (g.facts[q.key] = { r: [], t: 0 });
+      t.push(q.form ? 1 : 0);
+      rec.r.push(t);
+      if (rec.r.length > KEEP) rec.r.splice(0, rec.r.length - KEEP);
+      rec.t = Date.now();
+    }
     save();
   }
 
-  function bandsNow() {
-    const out = [];
-    for (let a = 1; a <= 12; a++) for (let b = 1; b <= 12; b++) out.push(stats(a, b).band);
-    return out;
-  }
-
-  function tally() {
-    const t = { green: 0, amber: 0, red: 0, none: 0 };
-    bandsNow().forEach(band => { t[band] += 1; });
-    return t;
-  }
-
-  const secs = ms => (ms / 1000).toFixed(1) + 's';
-  const plain = ms => String(ms / 1000);
-  const emo = s => `<span class="emo">${s}</span>`;
-
-  /* ---------- Levels ---------- */
-  const greenNeeded = () => Math.ceil(144 * lvl().pct / 100);
-
-  function goalMet() {
-    const L = lvl();
-    if (L.stars) return data.stars >= L.stars;
-    const t = tally();
-    return t.green >= greenNeeded() && t.red === 0 && t.none === 0;
-  }
-
-  function levelLine() {
-    const L = lvl();
-    return `Level ${data.level} of ${LEVELS.length}: ${L.division ? 'times tables and division' : 'times tables'}, green under ${plain(L.green)}s`;
-  }
-
-  // What it takes to reach the next level, as a sentence (and a progress figure for the home screen)
-  function goalParts() {
-    const L = lvl();
-    if (data.superstar) return { text: 'Every level beaten. Keep the map green!' };
-    if (L.stars) {
-      const got = Math.min(data.stars, L.stars);
-      return { stars: got, text: `<b>${got} of ${L.stars}</b> perfect rounds to level up. All ten green earns a star.` };
-    }
-    const t = tally(), need = greenNeeded();
-    let text = `<b>${Math.min(t.green, need)} of ${need}</b> green to level up.`;
-    if (t.red) text += ` <span class="warn">No reds allowed: ${t.red} to clear.</span>`;
-    if (t.none) text += ` ${t.none} ${t.none === 1 ? 'square' : 'squares'} still to try.`;
-    return { bar: Math.min(1, t.green / need), text };
-  }
-
-  // How to reach the next level, in a sentence
-  function goalSentence() {
-    const L = lvl();
-    const next = data.level < LEVELS.length ? `progress to Level ${data.level + 1}` : 'become a maths superstar';
-    if (L.stars) return `Complete ${L.stars} perfect rounds (all ten green) to ${next}.`;
-    if (L.pct === 100) return `Turn your whole heat map green to ${next}.`;
-    return `Turn ${L.pct}% of your heat map green, with no reds, to ${next}.`;
-  }
-
   /* ---------- Screens ---------- */
-  const SCREENS = ['home', 'play', 'results', 'map'];
+  let cur = 'times';               // the game on screen
+  const G = () => GAMES[cur];
+  const gd = () => data.g[cur];
+  const SCREENS = ['games', 'home', 'play', 'results', 'map', 'arcade', 'over'];
   function show(id) {
     SCREENS.forEach(s => $('#' + s).classList.toggle('active', s === id));
+    if (id === 'games') renderGames();
     if (id === 'home') renderHome();
     if (id === 'map') { renderMap(); $('#map').scrollTop = 0; }
+    if (id === 'arcade') renderArcade();
+  }
+  function openGame(id) {
+    cur = id;
+    data.last = id;
+    save();
+    show('home');
   }
 
-  function renderHome() {
-    $('#levelLine').textContent = levelLine();
-    const g = goalParts();
-    let visual = '';
-    if (data.superstar) visual = `<p class="goal-star">Maths superstar ${emo('🌟')}</p>`;
-    else if (g.stars !== undefined) {
-      let row = '';
-      for (let i = 0; i < lvl().stars; i++) row += `<span class="${i < g.stars ? 'on' : ''}">★</span>`;
-      visual = `<div class="stars" aria-hidden="true">${row}</div>`;
-    } else visual = `<div class="goal-bar"><i style="width:${Math.round(g.bar * 100)}%"></i></div>`;
-    $('#goal').innerHTML = `${visual}<p class="goal-text">${g.text}</p>`;
+  const sumHtml = t => t.map(x => (x === '?' ? '<span class="gap">?</span>' : typeof x === 'number' ? fmt(x) : x)).join(' ');
+  const egHtml = s => s.replace('?', '<span class="gap">?</span>');
+  const LOCK = '<svg viewBox="0 0 9 11" aria-hidden="true"><path d="M4.5 0A3 3 0 0 0 1.5 3v1.5H1a1 1 0 0 0-1 1V10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5.5a1 1 0 0 0-1-1h-.5V3a3 3 0 0 0-3-3Zm-1.8 4.5V3a1.8 1.8 0 0 1 3.6 0v1.5Z"/></svg>';
 
-    let html = '';
-    bandsNow().forEach(band => { html += `<i class="c-${band}"></i>`; });
-    $('#mini').innerHTML = html;
-    const t = tally();
-    $('#miniText').textContent = t.none === 144 ? 'Play a round to start filling it in' : `${t.green} green, ${t.amber} amber, ${t.red} red`;
+  /* ---------- Games list ---------- */
+  function renderGames() {
+    $('#gameList').innerHTML = Object.values(GAMES).map(game => {
+      const g = data.g[game.id];
+      let stars = '', count = 0;
+      for (let L = 1; L <= 6; L++) {
+        const on = !!(g.levels[L] && g.levels[L].star);
+        if (on) count += 1;
+        stars += `<span class="${on ? 'on' : ''}">★</span>`;
+      }
+      const where = g.superstar ? `Superstar ${emo('🌟')}` : `Level ${g.unlocked} of 6`;
+      return `<button class="game-card" data-game="${game.id}">
+        <span class="glyph" aria-hidden="true">${game.glyph}</span>
+        <span class="gc-text"><span class="gc-name">${game.name}</span>
+        <span class="gc-meta"><span>${where}</span><span class="gc-stars" aria-label="${count} of 6 stars">${stars}</span></span></span>
+        <span class="chev" aria-hidden="true">›</span></button>`;
+    }).join('') + arcadeCard();
+  }
+  function arcadeCard() {
+    const top = data.arcade.high[0];
+    return `<button class="game-card" data-game="arcade">
+        <span class="glyph quad" aria-hidden="true"><i>+</i><i>${MINUS}</i><i>${TIMES}</i><i>${DIVIDE}</i></span>
+        <span class="gc-text"><span class="gc-name">Arcade</span>
+        <span class="gc-meta"><span>${top ? `High score ${fmt(top.s)}` : 'Three lives. How far can you get?'}</span></span></span>
+        <span class="chev" aria-hidden="true">›</span></button>`;
+  }
+  $('#gameList').addEventListener('click', e => {
+    const card = e.target.closest('.game-card');
+    if (!card) return;
+    if (card.dataset.game === 'arcade') show('arcade'); else openGame(card.dataset.game);
+  });
+
+  /* ---------- A game's home ---------- */
+  function renderHome() {
+    const game = G(), g = gd(), n = g.sel, title = $('#gameName');
+    title.textContent = game.glyph;
+    title.setAttribute('aria-label', game.name);
+    $('#lvlLine').innerHTML = `<b>Level ${n} of 6</b><br>${game.line(n)}`;
+    renderGoal($('#pips'), $('#goalText'), null, n);
+    const m = game.mini(n), mini = $('#mini');
+    mini.className = m.cls;
+    mini.innerHTML = m.html;
+    $('#miniText').textContent = m.text;
+  }
+
+  function renderGoal(pipsEl, textEl, starEl, level) {
+    const L = gd().levels[level] || blankLevel();
+    const last = L.s.slice(-STREAK);
+    let pips = '';
+    for (let i = 0; i < STREAK; i++) {
+      const s = last[i];
+      pips += s == null ? '<span class="pip empty">–</span>'
+        : s < 0 ? '<span class="pip quit">quit</span>'
+        : `<span class="pip${s >= TARGET ? ' hit' : ''}">${fmt(s)}</span>`;
+    }
+    pipsEl.innerHTML = pips;
+    textEl.innerHTML = goalText(level, L);
+    if (starEl) showStar(starEl, level, L);
+  }
+
+  // The star only comes up once a level is passed: come back any time to finish its map
+  function showStar(el, level, L) {
+    const on = !!(L.star || L.passed);
+    el.hidden = !on;
+    if (!on) return;
+    el.innerHTML = starText(level, L);
+    el.classList.toggle('got', !!L.star);
+  }
+
+  function goalText(level, L) {
+    const g = gd();
+    const best = L.best ? ` Best <b>${fmt(L.best)}</b>.` : '';
+    if (level < 6 && level < g.unlocked) return `Level ${level + 1} is unlocked.${best}`;
+    if (level === 6 && g.superstar) return `Maths superstar ${emo('🌟')}${best}`;
+    const streak = streakOf(L.s), left = STREAK - streak;
+    if (streak === 0) return `Score <b>${TARGET}</b> ${WORDS[STREAK]} rounds in a row to ${level < 6 ? `unlock level ${level + 1}` : 'become a maths superstar'}.`;
+    const more = left === 1 ? `One more <b>${TARGET}</b>` : `${cap(WORDS[left])} more <b>${TARGET}</b>s`;
+    const does = level < 6
+      ? `${left === 1 ? 'unlocks' : 'unlock'} level ${level + 1}`
+      : `${left === 1 ? 'makes' : 'make'} you a maths superstar`;
+    return `${streak} in a row. ${more} ${does}.`;
+  }
+
+  function starText(level, L) {
+    const icon = '<span class="star" aria-hidden="true">★</span>';
+    if (L.star) return `${icon}<span>Level ${level} star earned.</span>`;
+    return `${icon}<span>${G().starText(level, G().starProgress(level))}</span>`;
   }
 
   /* ---------- A round of ten ---------- */
   const sumEl = $('#sum'), ansEl = $('#answer'), revEl = $('#reveal');
   const stageEl = $('#stage'), padEl = $('#keypad'), barEl = $('#bar'), countEl = $('#qcount');
-  let game = null;
-
-  const shuffle = list => {
-    for (let i = list.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [list[i], list[j]] = [list[j], list[i]];
-    }
-    return list;
-  };
-
-  // How a round is built.
-  // Levels 1 and 2 (stars): up to 5 repeats of squares she's been slow or wrong on at this
-  // level, reds first, then the rest at random. Repeats keep coming back until they're green.
-  // Levels 3 to 6 (map): two green squares to keep them sharp, then red and amber squares
-  // (capped at 3 while any squares are untried, so the map keeps filling), then untried ones.
-  // In division levels, half the ten are division, and a repeat comes back in the form she
-  // struggled with, so a slow 63 ÷ 9 returns as 63 ÷ 9. Division counts towards 7 × 9.
-  function pickQuestions() {
-    const squares = [];
-    for (let a = 1; a <= 12; a++) {
-      for (let b = 1; b <= 12; b++) {
-        const f = data.facts[a + 'x' + b];
-        const s = stats(a, b);
-        squares.push({ a, b, band: s.band, fresh: !!s.fresh, seen: f ? f.t : 0, rnd: Math.random() });
-      }
-    }
-    const picks = shuffle(lvl().stars ? pickForStars(squares) : pickForMap(squares));
-    return withForms(picks).map(p => ({
-      a: p.a, b: p.b, div: p.div,
-      text: p.div ? `${p.a * p.b} ÷ ${p.b}` : `${p.a} × ${p.b}`,
-      ans: String(p.div ? p.a : p.a * p.b)
-    }));
-  }
-
-  // Squares she's actually been slow or wrong on at this level (not ones carried over from an earlier level)
-  const isWeak = s => (s.band === 'red' || s.band === 'amber') && !s.fresh;
-  const byRandom = (x, y) => x.rnd - y.rnd;
-  const oldestFirst = (x, y) => (x.seen - y.seen) || (x.rnd - y.rnd);
-  const redsFirst = (x, y) => ((x.band === 'red' ? 0 : 1) - (y.band === 'red' ? 0 : 1)) || oldestFirst(x, y);
-
-  function pickForStars(squares) {
-    const repeats = squares.filter(isWeak).sort(redsFirst).slice(0, REPEATS);
-    const rest = squares.filter(s => !repeats.includes(s)).sort(byRandom);
-    return repeats.concat(rest.slice(0, QUESTIONS - repeats.length));
-  }
-
-  function pickForMap(squares) {
-    const green = squares.filter(s => s.band === 'green').sort(oldestFirst);
-    const weak = squares.filter(s => s.band === 'red' || s.band === 'amber').sort(redsFirst);
-    const untried = squares.filter(s => s.band === 'none').sort(byRandom);
-    const picks = [];
-    const take = (list, n) => {
-      while (n > 0 && list.length && picks.length < QUESTIONS) { picks.push(list.shift()); n -= 1; }
-    };
-    take(green, REINFORCE);
-    take(weak, untried.length ? WEAK_WHILE_FILLING : QUESTIONS);
-    take(untried, QUESTIONS);
-    take(weak, QUESTIONS);
-    take(green, QUESTIONS);
-    return picks;
-  }
-
-  // The form of her latest slow or wrong answer on a square: division (true) or multiplication (false)
-  function weakForm(a, b) {
-    const f = data.facts[a + 'x' + b];
-    const recent = f ? f.r.filter(x => x[2] === data.level).slice(-ROLLING) : [];
-    for (let i = recent.length - 1; i >= 0; i--) {
-      const [ms, ok, , op] = recent[i];
-      if (!ok || ms >= lvl().green) return op === 1;
-    }
-    return null;
-  }
-
-  // Decides which sums are asked as division: repeats keep their form, the rest make it up to half
-  function withForms(picks) {
-    if (!lvl().division) return picks.map(p => ({ ...p, div: false }));
-    const forms = picks.map(p => isWeak(p) ? weakForm(p.a, p.b) : null);
-    let divsLeft = Math.max(0, Math.ceil(picks.length / 2) - forms.filter(f => f === true).length);
-    shuffle(forms.map((f, i) => f === null ? i : -1).filter(i => i >= 0)).forEach(i => {
-      forms[i] = divsLeft > 0;
-      if (divsLeft > 0) divsLeft -= 1;
-    });
-    return picks.map((p, i) => ({ ...p, div: forms[i] === true }));
-  }
+  let round = null, last = null;
 
   // A timer that is cancelled if the round is stopped
   function later(fn, ms) {
-    const g = game;
-    if (!g) return;
-    g.timers.push(setTimeout(() => { if (game === g) fn(); }, ms));
+    const r = round;
+    if (!r) return;
+    r.timers.push(setTimeout(() => { if (round === r) fn(); }, ms));
   }
 
-  function startRound() {
-    if (game) return;
-    game = { qs: pickQuestions(), i: 0, typed: '', t0: 0, hiddenAt: 0, results: [], locked: true, timers: [], intro: null };
+  function startRound(level) {
+    if (round || arc) return;
+    level = level || gd().sel;
+    round = { id: cur, level, qs: G().pickRound(level), i: 0, typed: '', t0: 0, hiddenAt: 0, results: [], locked: true, timers: [], intro: null };
+    $('#play').classList.remove('arcade');
+    tagEl.textContent = '';
+    barEl.className = '';
+    barEl.style.transform = '';
+    barEl.style.transition = 'none';
     barEl.style.width = '0%';
+    void barEl.offsetWidth;
+    barEl.style.transition = '';
     countEl.textContent = `1/${QUESTIONS}`;
     ansEl.textContent = '';
     ansEl.className = 'answer';
     revEl.textContent = '';
+    revEl.className = 'reveal';
     stageEl.classList.remove('intro');
     stageEl.classList.add('counting');
     padEl.classList.add('dim');
     show('play');
-    if (data.seenIntro) countdown(3); else introStep(0);
+    if (gd().intro) countdown(3); else introStep(0);
   }
 
   function countdown(n) {
@@ -647,146 +1718,209 @@
       ask();
       return;
     }
-    sumEl.className = 'sum';
-    void sumEl.offsetWidth; // restart the pop animation
-    sumEl.className = 'sum count';
-    sumEl.textContent = n;
+    popSum(String(n));
     later(() => countdown(n - 1), 700);
   }
 
-  // First time only: the countdown doubles as how to play, one tap per step
-  function introLines() {
-    const L = lvl();
-    const g = plain(L.green), r = plain(L.red);
-    return [
-      `Answer these ${L.division ? 'times tables and division' : 'times tables'} sums within ${g} seconds to get a green square on your heat map.`,
-      `If you take between ${g} and ${r} seconds, it goes amber. Over ${r} seconds it’s red.`,
-      goalSentence()
-    ];
-  }
-
-  let introAt = 0;
-  function introStep(step) {
-    const lines = introLines();
-    introAt = performance.now();
+  function popSum(text, cls) {
+    sumEl.style.fontSize = '';
     sumEl.className = 'sum';
     void sumEl.offsetWidth; // restart the pop animation
-    sumEl.className = 'sum count';
+    sumEl.className = 'sum count' + (cls ? ' ' + cls : '');
+    sumEl.textContent = text;
+    if (text.length > 3) fitSum();
+  }
+
+  // First round of each game: the countdown doubles as how to play, one tap per step
+  let introAt = 0;
+  function introStep(step) {
+    const lines = G().intro(round.level);
+    introAt = performance.now();
     if (step < lines.length) {
-      game.intro = step;
+      round.intro = step;
       stageEl.classList.add('intro');
-      sumEl.textContent = String(lines.length - step);
+      popSum(String(lines.length - step));
       $('#introText').textContent = lines[step];
       return;
     }
-    game.intro = null;
+    round.intro = null;
     stageEl.classList.remove('intro');
-    sumEl.textContent = 'GO!';
-    data.seenIntro = true;
+    popSum('GO!');
+    gd().intro = true;
     save();
     padEl.classList.remove('dim');
     later(() => { stageEl.classList.remove('counting'); ask(); }, 700);
   }
-
   $('#play').addEventListener('click', e => {
-    if (!game || game.intro === null || e.target.closest('#quit')) return;
+    if (e.target.closest('#quit')) return;
+    if (arc) {
+      if (arc.intro !== null) { if (performance.now() - introAt >= 350) arcIntroStep(arc.intro + 1); }
+      else if (arc.paused && modal.hidden) arcResume();
+      return;
+    }
+    if (!round || round.intro === null) return;
     if (performance.now() - introAt < 350) return; // a quick double tap shouldn't skip a step
-    introStep(game.intro + 1);
+    introStep(round.intro + 1);
   });
 
+  // Shrinks long sums like 10,000 − 4,738 to fit the screen
+  function fitSum() {
+    sumEl.style.fontSize = '';
+    const room = stageEl.clientWidth, need = sumEl.scrollWidth;
+    if (room > 0 && need > room) {
+      const size = parseFloat(getComputedStyle(sumEl).fontSize);
+      sumEl.style.fontSize = Math.floor(size * room / need * 0.96) + 'px';
+    }
+  }
+
   function ask() {
-    const q = game.qs[game.i];
-    game.typed = '';
-    sumEl.className = q.text.length > 7 ? 'sum long' : 'sum';
-    sumEl.textContent = q.text;
+    const q = round.qs[round.i];
+    round.typed = '';
+    sumEl.className = 'sum';
+    sumEl.innerHTML = sumHtml(q.t);
+    fitSum();
     ansEl.textContent = '';
     ansEl.className = 'answer';
     revEl.textContent = '';
-    countEl.textContent = `${game.i + 1}/${QUESTIONS}`;
-    game.locked = false;
-    game.t0 = performance.now();
-    const g = game;
+    revEl.className = 'reveal';
+    countEl.textContent = `${round.i + 1}/${QUESTIONS}`;
+    round.locked = false;
+    round.t0 = performance.now();
+    const r = round;
     // Start the clock when the sum is actually on screen
-    requestAnimationFrame(() => { if (game === g && !g.locked && g.typed === '') g.t0 = performance.now(); });
+    requestAnimationFrame(() => { if (round === r && !r.locked && r.typed === '') r.t0 = performance.now(); });
   }
 
   function press(key) {
-    if (!game || game.locked) return;
-    const q = game.qs[game.i];
+    if (!round || round.locked) return;
+    const correct = String(round.qs[round.i].ans);
     if (key === 'del') {
-      game.typed = game.typed.slice(0, -1);
-      ansEl.textContent = game.typed;
+      round.typed = round.typed.slice(0, -1);
+      ansEl.textContent = fmt(round.typed);
       return;
     }
-    if (!game.typed && key === '0') return; // no answer starts with 0
-    game.typed += key;
-    ansEl.textContent = game.typed;
+    if (!round.typed && key === '0') return; // no answer starts with 0
+    round.typed += key;
+    ansEl.textContent = fmt(round.typed);
     // Marks itself once the right number of digits is in, so there's no Enter button eating time
-    if (game.typed.length >= q.ans.length) submit(game.typed === q.ans, performance.now() - game.t0);
+    if (round.typed.length >= correct.length) submit(round.typed === correct, performance.now() - round.t0);
   }
 
   function submit(ok, ms) {
-    game.locked = true;
-    const q = game.qs[game.i];
-    game.results.push({ ok, ms });
+    round.locked = true;
+    const q = round.qs[round.i];
+    const pts = points(ok, ms, q.par);
+    round.results.push({ q, typed: round.typed, ok, ms, pts });
     record(q, ms, ok);
-    barEl.style.width = ((game.i + 1) / QUESTIONS * 100) + '%';
+    barEl.style.width = ((round.i + 1) / QUESTIONS * 100) + '%';
     if (ok) {
       ansEl.className = 'answer ok';
-      later(nextQuestion, 300);
+      revEl.className = 'reveal pts';
+      revEl.textContent = '+' + pts;
+      later(nextQuestion, 600);
     } else {
       ansEl.className = 'answer bad';
-      revEl.textContent = q.ans;
-      later(nextQuestion, 1500);
+      revEl.className = 'reveal';
+      revEl.textContent = fmt(q.ans);
+      later(nextQuestion, 1300 + 150 * String(q.ans).length);
     }
   }
 
   function nextQuestion() {
-    game.i += 1;
-    if (game.i < QUESTIONS) ask(); else finishRound();
+    round.i += 1;
+    if (round.i < QUESTIONS) ask(); else finishRound();
   }
 
   function stopRound() {
-    if (game) game.timers.forEach(clearTimeout);
-    game = null;
+    if (round) round.timers.forEach(clearTimeout);
+    round = null;
   }
 
+  // Quitting after answering breaks a run of 900s, so a slip can't be dodged by starting again
   function quitRound() {
+    if (round && round.results.length) {
+      const L = levelRec(data.g[round.id], round.level);
+      L.s.push(-1);
+      if (L.s.length > 50) L.s.splice(0, L.s.length - 50);
+      save();
+    }
     stopRound();
     show('home');
-    checkProgress();
   }
 
   function finishRound() {
-    const results = game.results;
+    const { id, level, results } = round;
     stopRound();
-    const L = lvl();
-    const score = results.filter(r => r.ok).length;
-    const total = results.reduce((s, r) => s + r.ms, 0);
-    const avg = total / results.length;
-    const perfect = results.length === QUESTIONS && results.every(r => r.ok && r.ms < L.green);
-    if (L.stars && perfect && !data.superstar) data.stars += 1;
-    data.sessions.push({ d: Date.now(), s: score, ms: Math.round(total), l: data.level, p: perfect ? 1 : 0 });
-    if (data.sessions.length > 1000) data.sessions.splice(0, data.sessions.length - 1000);
+    const g = data.g[id], game = GAMES[id];
+    const score = results.reduce((s, r) => s + r.pts, 0);
+    const L = levelRec(g, level);
+    L.s.push(score);
+    if (L.s.length > 50) L.s.splice(0, L.s.length - 50);
+    L.best = Math.max(L.best || 0, score);
+    L.n += 1;
+    let unlockedNow = false, superNow = false, starNow = false;
+    if (streakOf(L.s) >= STREAK) {
+      L.passed = true;
+      if (level < 6 && level === g.unlocked) {
+        g.unlocked = level + 1;
+        g.sel = level + 1;
+        unlockedNow = true;
+      }
+      if (level === 6 && !g.superstar) { g.superstar = true; superNow = true; }
+    }
+    if (!L.star && game.starProgress(level).ready) { L.star = true; starNow = true; }
     save();
-    $('#resScore').innerHTML = `${score}<small>/${QUESTIONS}</small>`;
-    $('#resMsg').innerHTML = L.stars && perfect
-      ? `Perfect round! ${emo('⭐')} ${Math.min(data.stars, L.stars)} of ${L.stars}`
-      : cheer(score, avg);
-    $('#resTime').textContent = secs(total);
-    const avgEl = $('#resAvg');
-    avgEl.textContent = secs(avg);
-    avgEl.className = 't-' + bandOf(avg);
+    last = { level, unlockedNow, starNow };
+    renderResults(level, results, score, unlockedNow, starNow, superNow);
     show('results');
-    checkProgress();
+    // Full-screen moments: the star first (looking back), then the new level or superstar (looking forward)
+    const shows = [];
+    if (starNow) shows.push({ kind: 'star', message: STAR_WELL_DONE(level), map: game.starMap(level), next: STAR_KEEP_GOING });
+    if (unlockedNow) {
+      const nudge = L.star ? '' : `<span class="star-nudge"><i>★</i> Come back to level ${level} any time to finish its heat map and earn a star.</span>`;
+      shows.push({ kind: 'level', message: game.levelUp[level + 1], map: game.celebrationMap(level, level + 1), next: game.whatsNew(level + 1) + nudge });
+    }
+    else if (superNow) shows.push({ kind: 'super', message: SUPERSTAR, map: game.celebrationMap(6, 6), next: '' });
+    celebrateAll(shows);
   }
 
-  function cheer(score, avg) {
-    if (score === QUESTIONS && avg < lvl().green) return 'Perfect, and lightning fast!';
-    if (score === QUESTIONS) return 'Perfect round!';
-    if (score >= 8) return 'Great work!';
-    if (score >= 5) return 'Good effort. Keep going!';
+  function cheer(score, right, level, unlockedNow, starNow, superNow) {
+    if (superNow) return `Maths superstar! ${emo('🌟')}`;
+    if (unlockedNow && starNow) return `Level ${level + 1} unlocked, and a star! ${emo('⭐')}`;
+    if (unlockedNow) return `Level ${level + 1} unlocked! ${emo('🔓')}`;
+    if (starNow) return `You’ve earned the level ${level} star! ${emo('⭐')}`;
+    if (score === 1000) return 'Perfect round!';
+    if (score >= TARGET) return 'Target hit!';
+    if (right >= 9) return 'Nearly all right. Now go faster!';
+    if (right >= 6) return 'Good effort. Keep going!';
     return 'Keep practising, you’ll get there!';
+  }
+
+  function eqHtml(q) {
+    const parts = q.t.map(x => (x === '?' ? `<b>${fmt(q.ans)}</b>` : typeof x === 'number' ? fmt(x) : x));
+    if (!q.t.includes('?')) parts.push('=', `<b>${fmt(q.ans)}</b>`);
+    return parts.join(' ');
+  }
+
+  function renderResults(level, results, score, unlockedNow, starNow, superNow) {
+    const right = results.filter(r => r.ok).length;
+    $('#resLevel').textContent = `${G().glyph}  ·  Level ${level}`;
+    $('#resScore').textContent = fmt(score);
+    $('#resMsg').innerHTML = cheer(score, right, level, unlockedNow, starNow, superNow);
+    renderGoal($('#resPips'), $('#resGoal'), $('#resStar'), level);
+    $('#resRight').innerHTML = `${right}<small>/${QUESTIONS}</small>`;
+    const avgMs = results.reduce((s, r) => s + r.ms, 0) / results.length;
+    const avgRatio = results.reduce((s, r) => s + r.ms / r.q.par, 0) / results.length;
+    const avgEl = $('#resAvg');
+    avgEl.textContent = secs(avgMs);
+    avgEl.className = 't-' + bandOf(avgRatio);
+    $('#resList').innerHTML = results.map(r => {
+      const you = r.ok ? '' : `<small>You said <s>${fmt(r.typed)}</s></small>`;
+      const tm = r.ok ? bandOf(r.ms / r.q.par) : 'red';
+      return `<li class="${r.ok ? 'ok' : 'bad'}"><span class="eq">${eqHtml(r.q)}${you}</span><span class="tm t-${tm}">${secs(r.ms)}</span><span class="pt">${r.ok ? '+' + r.pts : '0'}</span></li>`;
+    }).join('');
+    $('#again').textContent = unlockedNow ? `Play level ${level + 1}` : 'Go again';
+    $('#resScroll').scrollTop = 0;
   }
 
   // Keypad reacts on touch-down rather than release, so timing is as fair as possible
@@ -796,46 +1930,492 @@
     e.preventDefault();
     btn.classList.add('down');
     setTimeout(() => btn.classList.remove('down'), 120);
-    press(btn.dataset.k);
+    if (arc) arcPress(btn.dataset.k); else press(btn.dataset.k);
   });
 
   // A keyboard works too, for testing on a computer
   document.addEventListener('keydown', e => {
+    if (!modal.hidden) { if (e.key === 'Escape') closeModal(false); return; }
+    const game = arc ? arcPress : round ? press : null;
     if (!game) return;
-    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); press(e.key); }
-    else if (e.key === 'Backspace') { e.preventDefault(); press('del'); }
-    else if (e.key === 'Escape') quitRound();
+    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); game(e.key); }
+    else if (e.key === 'Backspace') { e.preventDefault(); game('del'); }
+    else if (e.key === 'Escape') { if (arc) arcQuit(); else quitRound(); }
   });
 
-  // Time spent with the app in the background doesn't count
+  // Time spent with the app in the background doesn't count. Arcade pauses until she taps to carry on.
   document.addEventListener('visibilitychange', () => {
-    if (!game || game.locked) return;
-    if (document.hidden) game.hiddenAt = performance.now();
-    else if (game.hiddenAt) { game.t0 += performance.now() - game.hiddenAt; game.hiddenAt = 0; }
+    if (arc) { if (document.hidden) arcPause(true); return; }
+    if (!round || round.locked) return;
+    if (document.hidden) round.hiddenAt = performance.now();
+    else if (round.hiddenAt) { round.t0 += performance.now() - round.hiddenAt; round.hiddenAt = 0; }
+  });
+
+  /* ---------- Arcade: playing ---------- */
+  const livesEl = $('#lives'), hudScore = $('#arcScore'), hudMult = $('#arcMult'), hudStage = $('#arcStage'), tagEl = $('#tag');
+  const HEART = '<path d="M12 20.6C6.1 16.2 2.6 12.6 2.6 8.7c0-2.9 2.2-5.1 4.9-5.1 1.9 0 3.5 1.1 4.5 2.7 1-1.6 2.6-2.7 4.5-2.7 2.7 0 4.9 2.2 4.9 5.1 0 3.9-3.5 7.5-9.4 11.9z"/>';
+  const ARC_INTRO = [
+    'Adding, taking away, times and divide, all mixed up. Every ten sums you reach a new stage and the sums get harder.',
+    'You have three lives. A wrong answer loses one. Taking your time is fine, it just scores fewer points.',
+    'Right answers in a row build a multiplier. Gold sums are rematches, worth double.'
+  ];
+  let arc = null, arcOver = null;
+
+  // A timer that is cancelled if the game stops, and held back while it's paused
+  function arcLater(fn, ms) {
+    const a = arc;
+    if (!a) return;
+    const id = setTimeout(() => {
+      a.timers = a.timers.filter(x => x !== id);
+      if (arc !== a) return;
+      if (a.paused) a.held.push(fn); else fn();
+    }, ms);
+    a.timers.push(id);
+  }
+  function bump(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+
+  function arcStart() {
+    if (round || arc) return;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    sound.unlock();
+    arc = {
+      S: 1, n: 0, score: 0, lives: ARC_LIVES, run: 0, best: 0, right: 0, lifeIdx: 0, recent: [],
+      q: null, typed: '', t0: 0, locked: true, timers: [], held: [], raf: 0, intro: null, paused: false, pausedAt: 0
+    };
+    $('#play').classList.add('arcade');
+    barEl.className = '';
+    barEl.style.width = '';
+    barEl.style.transform = 'scaleX(1)';
+    ansEl.textContent = '';
+    ansEl.className = 'answer';
+    revEl.textContent = '';
+    revEl.className = 'reveal';
+    tagEl.textContent = '';
+    stageEl.classList.remove('intro');
+    stageEl.classList.add('counting');
+    padEl.classList.add('dim');
+    arcHud();
+    show('play');
+    if (data.arcade.intro) arcCountdown(3); else arcIntroStep(0);
+  }
+
+  function arcCountdown(n) {
+    if (n === 0) {
+      stageEl.classList.remove('counting');
+      padEl.classList.remove('dim');
+      arcAsk();
+      return;
+    }
+    popSum(String(n));
+    sound.play('tick');
+    arcLater(() => arcCountdown(n - 1), 700);
+  }
+
+  // First game: the countdown doubles as how to play, one tap per step
+  function arcIntroStep(step) {
+    introAt = performance.now();
+    if (step < ARC_INTRO.length) {
+      arc.intro = step;
+      stageEl.classList.add('intro');
+      popSum(String(ARC_INTRO.length - step));
+      $('#introText').textContent = ARC_INTRO[step];
+      return;
+    }
+    arc.intro = null;
+    stageEl.classList.remove('intro');
+    popSum('GO!');
+    sound.play('go');
+    data.arcade.intro = true;
+    save();
+    padEl.classList.remove('dim');
+    arcLater(() => { stageEl.classList.remove('counting'); arcAsk(); }, 700);
+  }
+
+  function arcAsk() {
+    const a = arc, due = (a.n + 1) % ARC_REMATCH_EVERY === 0;
+    a.q = (due && arcRematch(a.S, a.recent)) || arcQ(a.S, a.recent);
+    a.recent.push(keyOf(a.q.t));
+    if (a.recent.length > ARC_RECENT) a.recent.shift();
+    a.typed = '';
+    arcShowQ();
+    barEl.className = '';
+    barEl.style.transform = 'scaleX(1)';
+    a.locked = false;
+    a.t0 = performance.now();
+    // Start the clock when the sum is actually on screen
+    requestAnimationFrame(() => { if (arc === a && !a.locked && !a.paused && a.typed === '') a.t0 = performance.now(); });
+    arcClock();
+  }
+
+  function arcShowQ() {
+    const q = arc.q;
+    stageEl.classList.remove('counting', 'intro');
+    tagEl.textContent = q.rematch ? 'Rematch · double points' : '';
+    sumEl.className = 'sum' + (q.rematch ? ' gold' : '');
+    sumEl.innerHTML = sumHtml(q.t);
+    fitSum();
+    ansEl.textContent = fmt(arc.typed);
+    ansEl.className = 'answer';
+    revEl.textContent = '';
+    revEl.className = 'reveal';
+  }
+
+  // The clock bar drains over 3 x par: green while full points are on offer, then amber, then red
+  function arcClock() {
+    const a = arc;
+    cancelAnimationFrame(a.raf);
+    const tick = () => {
+      if (arc !== a || a.locked || a.paused) return;
+      const x = (performance.now() - a.t0) / a.q.par;
+      barEl.style.transform = `scaleX(${Math.max(0, 1 - x / 3).toFixed(4)})`;
+      const cls = x <= 1 ? '' : x < 2 ? 'amber' : 'red';
+      if (barEl.className !== cls) barEl.className = cls;
+      if (x < 3) a.raf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  function arcPress(key) {
+    const a = arc;
+    if (!a || a.locked || a.paused) return;
+    sound.unlock();
+    const correct = String(a.q.ans);
+    if (key === 'del') {
+      a.typed = a.typed.slice(0, -1);
+      ansEl.textContent = fmt(a.typed);
+      return;
+    }
+    if (!a.typed && key === '0') return; // no answer starts with 0
+    a.typed += key;
+    ansEl.textContent = fmt(a.typed);
+    if (a.typed.length >= correct.length) arcSubmit(a.typed === correct, performance.now() - a.t0);
+  }
+
+  function arcSubmit(ok, ms) {
+    const a = arc, q = a.q, events = [];
+    a.locked = true;
+    cancelAnimationFrame(a.raf);
+    a.n += 1;
+    const wait = ok ? 600 : 1300 + 150 * String(q.ans).length;
+    if (ok) {
+      const mult = arcMult(a.run), pts = arcPoints(true, ms, q.par, a.S, mult, q.rematch);
+      a.score += pts;
+      a.run += 1;
+      a.right += 1;
+      a.best = Math.max(a.best, a.run);
+      ansEl.className = 'answer ok';
+      revEl.className = 'reveal pts' + (q.rematch ? ' gold' : '');
+      revEl.textContent = '+' + fmt(pts);
+      while (a.score >= lifeAt(a.lifeIdx)) {
+        a.lifeIdx += 1;
+        if (a.lives < ARC_MAX_LIVES) { a.lives += 1; events.push('life'); }
+      }
+      const up = arcMult(a.run) > mult;
+      sound.play(up ? 'streak' : q.rematch ? 'gold' : 'right');
+      if (up) bump(hudMult, 'up');
+      // A rematch answered quickly stops coming back; anything slow comes back later
+      if (q.rematch && ms <= q.par) arcForget(q);
+      else if (ms > 2 * q.par) arcRemember(q);
+    } else {
+      a.lives -= 1;
+      a.run = 0;
+      ansEl.className = 'answer bad';
+      revEl.className = 'reveal';
+      revEl.textContent = fmt(q.ans);
+      sound.play('wrong');
+      bump(livesEl, 'hit');
+      arcRemember(q);
+    }
+    data.arcade.live = { s: a.score, st: a.S }; // so a game cut short by the phone still counts
+    save();
+    arcHud();
+    if (a.lives <= 0) { arcLater(arcEnding, wait); return; }
+    if (a.n % ARC_STAGE_LEN === 0) events.push('stage');
+    arcLater(() => arcEvents(events), wait);
+  }
+
+  // Extra lives and new stages get a moment of their own between sums
+  function arcEvents(events) {
+    const e = events.shift();
+    if (!e) { arcAsk(); return; }
+    stageEl.classList.add('counting');
+    barEl.className = '';
+    barEl.style.transform = 'scaleX(1)';
+    if (e === 'life') {
+      tagEl.textContent = '';
+      popSum('+1 life', 'life');
+      sound.play('life');
+      bump(livesEl, 'gain');
+    } else {
+      arc.S += 1;
+      arcHud();
+      tagEl.textContent = arcStageName(arc.S);
+      popSum(`Stage ${arc.S}`, 'banner');
+      sound.play('stage');
+    }
+    arcLater(() => arcEvents(events), 1300);
+  }
+
+  function arcEnding() {
+    stageEl.classList.add('counting');
+    tagEl.textContent = '';
+    padEl.classList.add('dim');
+    popSum('Game over', 'over');
+    sound.play('over');
+    arcLater(() => arcGameOver(false), 1800);
+  }
+
+  function arcHud() {
+    const a = arc, m = arcMult(a.run);
+    hudScore.textContent = fmt(a.score);
+    hudMult.textContent = TIMES + m;
+    hudMult.classList.toggle('on', m > 1);
+    hudStage.textContent = `Stage ${a.S}`;
+    let hearts = '';
+    for (let k = 0; k < Math.max(ARC_LIVES, a.lives); k++) hearts += `<svg viewBox="0 0 24 24"${k < a.lives ? '' : ' class="lost"'}>${HEART}</svg>`;
+    livesEl.innerHTML = hearts;
+    livesEl.setAttribute('aria-label', `${a.lives} ${a.lives === 1 ? 'life' : 'lives'} left`);
+  }
+
+  // Leaving the app pauses the game: the sum hides and the clock stops until she taps to carry on
+  function arcPause(cover) {
+    const a = arc;
+    if (!a || a.paused || a.intro !== null) return;
+    a.paused = true;
+    a.pausedAt = performance.now();
+    a.wasDim = padEl.classList.contains('dim');
+    cancelAnimationFrame(a.raf);
+    if (cover) {
+      stageEl.classList.add('intro');
+      tagEl.textContent = '';
+      popSum('Paused', 'paused');
+      $('#introText').textContent = 'The clock stops while you’re away.';
+      padEl.classList.add('dim');
+    }
+  }
+  function arcResume() {
+    const a = arc;
+    if (!a || !a.paused) return;
+    sound.unlock();
+    if (a.lives <= 0) { arcGameOver(false); return; }
+    a.paused = false;
+    padEl.classList.toggle('dim', !!a.wasDim);
+    if (stageEl.classList.contains('intro')) {
+      stageEl.classList.remove('intro');
+      if (a.locked) sumEl.textContent = ''; else arcShowQ();
+    }
+    if (!a.locked) { a.t0 += performance.now() - a.pausedAt; arcClock(); }
+    const held = a.held;
+    a.held = [];
+    held.forEach(fn => fn());
+  }
+
+  // Quitting ends the game, and the score still counts
+  function arcQuit() {
+    const a = arc;
+    if (!a || a.lives <= 0) return;
+    if (!a.n) { arcStop(); data.arcade.live = null; save(); show('arcade'); return; }
+    arcPause(false);
+    confirmBox('End this game? Your score still counts.', 'End game', true,
+      () => { if (arc === a) arcGameOver(true); },
+      { no: 'Keep playing', onNo: () => { if (arc === a) arcResume(); } });
+  }
+  function arcStop() {
+    if (!arc) return;
+    arc.timers.forEach(clearTimeout);
+    cancelAnimationFrame(arc.raf);
+    arc = null;
+  }
+
+  // Puts a finished game on the high score table if it's good enough. Returns its place, or -1.
+  function arcRecord(score, S) {
+    const A = data.arcade;
+    A.games += 1;
+    A.live = null;
+    if (!(score > 0)) return -1;
+    let rank = A.high.findIndex(e => score > e.s);
+    if (rank < 0) rank = A.high.length;
+    if (rank >= ARC_TOP) return -1;
+    A.high.splice(rank, 0, { s: score, i: A.last || '???', st: S, d: Date.now() });
+    if (A.high.length > ARC_TOP) A.high.length = ARC_TOP;
+    return rank;
+  }
+  // A game the phone closed part way through still counts
+  if (data.arcade.live) { arcRecord(data.arcade.live.s, data.arcade.live.st); save(); }
+
+  function arcGameOver(quit) {
+    const a = arc;
+    arcStop();
+    const rank = arcRecord(a.score, a.S);
+    save();
+    arcOver = { rank, score: a.score, S: a.S, right: a.right, n: a.n, best: a.best, quit };
+    renderOver();
+    show('over');
+    if (rank >= 0) sound.play('high');
+  }
+
+  function renderOver() {
+    const o = arcOver, A = data.arcade, lastPlace = A.high[ARC_TOP - 1];
+    $('#overTitle').innerHTML = o.rank === 0 ? `New high score! ${emo('🏆')}`
+      : o.rank > 0 ? `You’re number ${o.rank + 1}! ${emo('🎉')}`
+      : o.quit ? 'Game ended' : 'Game over';
+    $('#overScore').textContent = fmt(o.score);
+    $('#overStage').textContent = o.S;
+    $('#overRight').innerHTML = `${o.right}<small>/${o.n}</small>`;
+    $('#overRun').textContent = o.best;
+    $('#initialsBox').hidden = o.rank < 0;
+    if (o.rank >= 0) iniEl.value = A.last;
+    $('#overNote').textContent = o.rank >= 0 ? ''
+      : lastPlace ? `Beat ${fmt(lastPlace.s)} to get on the high scores.`
+      : 'Get a sum right to get on the high scores.';
+    renderHigh($('#overHigh'), o.rank, false);
+    $('#overScroll').scrollTop = 0;
+  }
+
+  function renderHigh(el, mine, compact) {
+    const hi = data.arcade.high;
+    let html = '';
+    for (let k = 0; k < ARC_TOP; k++) {
+      const e = hi[k], st = compact ? '' : `<span class="st">${e ? `stage ${e.st}` : ''}</span>`;
+      html += e
+        ? `<li${k === mine ? ' class="me"' : ''}><span class="rk">${k + 1}</span><span class="ini">${e.i}</span>${st}<span class="sc">${fmt(e.s)}</span></li>`
+        : `<li class="empty"><span class="rk">${k + 1}</span><span class="ini">–––</span>${st}<span class="sc">–</span></li>`;
+    }
+    el.innerHTML = html;
+  }
+
+  // Initials go into the table as she types, and are remembered for next time
+  const iniEl = $('#initials');
+  iniEl.addEventListener('input', () => {
+    const v = cleanInitials(iniEl.value);
+    if (iniEl.value !== v) iniEl.value = v;
+    if (!arcOver || arcOver.rank < 0) return;
+    const entry = data.arcade.high[arcOver.rank];
+    if (entry) entry.i = v || '???';
+    if (v) data.arcade.last = v;
+    save();
+    renderHigh($('#overHigh'), arcOver.rank, false);
+  });
+  iniEl.addEventListener('keydown', e => { if (e.key === 'Enter') iniEl.blur(); });
+  $('#initOk').addEventListener('click', () => {
+    if (!iniEl.value) { iniEl.focus(); return; }
+    iniEl.blur();
+    toast(`Saved as ${iniEl.value}`);
+  });
+
+  /* ---------- Arcade: home and sound ---------- */
+  function renderArcade() {
+    const A = data.arcade, top = A.high[0], list = $('#arcHigh');
+    $('#arcLine').innerHTML = `<b>${top ? `High score ${fmt(top.s)}` : 'No high score yet'}</b><br>Mixed sums, ${WORDS[ARC_LIVES]} lives.`;
+    if (A.high.length) { list.className = 'high compact'; renderHigh(list, -1, true); }
+    else { list.className = 'high-none'; list.innerHTML = '<li>No scores yet. Play a game to get on the board!</li>'; }
+    setSoundBtn();
+  }
+
+  const SPEAKER = '<path d="M3.5 9.2h3.6L12 5v14l-4.9-4.2H3.5z" fill="currentColor"/>';
+  const WAVES = '<path d="M15.6 9a4.2 4.2 0 0 1 0 6M18.2 6.4a7.8 7.8 0 0 1 0 11.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>';
+  const MUTED = '<path d="M15.8 9.4l5 5.2M20.8 9.4l-5 5.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>';
+  function setSoundBtn() {
+    const off = data.arcade.mute, btn = $('#arcSound');
+    btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${SPEAKER}${off ? MUTED : WAVES}</svg>`;
+    btn.setAttribute('aria-label', off ? 'Sound is off' : 'Sound is on');
+    btn.style.color = off ? '' : 'var(--fg)';
+  }
+
+  // Little synthesised blips, so there's nothing to download. Phones on silent stay silent.
+  const sound = (() => {
+    let ctx = null, master = null;
+    const NOTES = {
+      tick:   [[587, 0, .09]],
+      go:     [[880, 0, .22]],
+      right:  [[784, 0, .06], [1175, .05, .1]],
+      gold:   [[1047, 0, .06], [1319, .06, .06], [1760, .12, .16]],
+      streak: [[659, 0, .06], [880, .06, .06], [1175, .12, .06], [1568, .18, .18]],
+      wrong:  [[196, 0, .32, 'sawtooth', 98]],
+      stage:  [[523, 0, .1], [659, .1, .1], [784, .2, .1], [1047, .3, .32]],
+      life:   [[784, 0, .07], [988, .07, .07], [1319, .14, .07], [1568, .21, .07], [1976, .28, .22]],
+      over:   [[392, 0, .22, 'triangle'], [311, .22, .22, 'triangle'], [262, .44, .22, 'triangle'], [196, .66, .6, 'triangle']],
+      high:   [[523, 0, .1], [659, .1, .1], [784, .2, .1], [1047, .3, .16], [784, .48, .1], [1047, .58, .45]]
+    };
+    function unlock() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!ctx) {
+          ctx = new AC();
+          master = ctx.createGain();
+          master.gain.value = 0.16;
+          master.connect(ctx.destination);
+        }
+        if (ctx.state !== 'running') { const p = ctx.resume(); if (p && p.catch) p.catch(() => {}); }
+      } catch (e) { /* no sound here */ }
+    }
+    function play(name) {
+      if (data.arcade.mute || !ctx || ctx.state !== 'running' || !NOTES[name]) return;
+      try {
+        const now = ctx.currentTime + 0.01;
+        for (const [freq, at, dur, type, slide] of NOTES[name]) {
+          const o = ctx.createOscillator(), g = ctx.createGain(), t = now + at;
+          o.type = type || 'square';
+          o.frequency.setValueAtTime(freq, t);
+          if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(type === 'triangle' ? 1 : 0.5, t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          o.connect(g);
+          g.connect(master);
+          o.start(t);
+          o.stop(t + dur + 0.03);
+        }
+      } catch (e) { /* sound is a nice-to-have */ }
+    }
+    return { unlock, play };
+  })();
+
+  $('#arcBack').addEventListener('click', () => show('games'));
+  $('#arcGo').addEventListener('click', () => arcStart());
+  $('#arcInfo').addEventListener('click', () => openManual(arcManual()));
+  $('#arcSound').addEventListener('click', () => {
+    sound.unlock();
+    data.arcade.mute = !data.arcade.mute;
+    save();
+    setSoundBtn();
+    toast(data.arcade.mute ? 'Sound off' : 'Sound on');
+    sound.play('right');
+  });
+  $('#overAgain').addEventListener('click', () => arcStart());
+  $('#overHome').addEventListener('click', () => show('arcade'));
+  $('#manText').addEventListener('click', e => {
+    if (!e.target.closest('#clearHigh')) return;
+    confirmBox('Clear all the arcade high scores on this device?', 'Clear', true, () => {
+      data.arcade.high = [];
+      save();
+      renderArcade();
+      toast('High scores cleared');
+    });
   });
 
   /* ---------- Levelling up ---------- */
-  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const calm = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   let celebrationTimers = [];
+  const cellCls = c => (c === 'na' || c === 'lock' ? c : 'c-' + c);
 
-  function checkProgress() {
-    if (!goalMet()) return;
-    if (data.level < LEVELS.length) {
-      const before = bandsNow();
-      data.level += 1;
-      data.stars = 0;
-      save();
-      celebrate(LEVEL_UP_MESSAGES[data.level], before, bandsNow(), false);
-    } else if (!data.superstar) {
-      data.superstar = true;
-      save();
-      const now = bandsNow();
-      celebrate(SUPERSTAR_MESSAGE, now, now, true);
-    }
+  // One or more full-screen moments in a row; the next shows when the button's tapped
+  let celebrationQueue = [];
+  function celebrateAll(list) {
+    celebrationQueue = list.slice();
+    nextCelebration();
+  }
+  function nextCelebration() {
+    const c = celebrationQueue.shift();
+    if (c) celebrate(c); else closeCelebration();
   }
 
-  // Full-screen message with a huge emoji, and the map sweeping across to its new colours
-  function celebrate(message, from, to, superstar) {
+  // Full-screen message with a huge emoji, and the map changing to its new colours
+  function celebrate({ kind, message, map, next: nextHtml }) {
+    const superstar = kind === 'super';
+    const overlay = $('#levelUp'), body = overlay.querySelector('.lvl-body');
+    if (!overlay.hidden) bump(body, 'swap'); // a second screen fades in over the first
     const textEl = $('#lvlText');
     const cut = message.lastIndexOf(' ');
     textEl.textContent = message.slice(0, cut + 1);
@@ -843,107 +2423,139 @@
     emoji.className = 'lvl-emoji';
     emoji.textContent = message.slice(cut + 1);
     textEl.appendChild(emoji);
-
-    const map = $('#lvlMap');
-    let html = '', i = 0;
-    for (let a = 1; a <= 12; a++) {
-      for (let b = 1; b <= 12; b++) html += `<i class="c-${from[i++]}" style="transition-delay:${(a + b - 2) * 35}ms"></i>`;
-    }
-    map.innerHTML = html;
+    const mapEl = $('#lvlMap');
+    mapEl.className = 'lvl-map' + (map.cols <= 4 ? ' narrow' : '');
+    mapEl.style.gridTemplateColumns = `repeat(${map.cols}, 1fr)`;
+    mapEl.innerHTML = map.cells.map(c => `<i class="${cellCls(c.from)}" style="transition-delay:${c.delay || 0}ms"></i>`).join('');
     $('#lvlGo').hidden = superstar;
+    $('#lvlGo').textContent = kind === 'star' ? 'Thanks!' : 'Bring it on';
     const next = $('#lvlNext');
     next.hidden = superstar;
-    if (!superstar) {
-      const L = lvl();
-      next.innerHTML = `${WHATS_NEW[data.level]} green under ${plain(L.green)}s, red over ${plain(L.red)}s.<span>Your map starts fresh. ${goalSentence()}</span>`;
-    }
+    next.innerHTML = nextHtml;
     $('#keepPlaying').hidden = !superstar;
     $('#startAgain').hidden = !superstar;
     const actions = $('#lvlActions');
     actions.classList.remove('ready');
-    $('#levelUp').hidden = false;
+    overlay.hidden = false;
+    overlay.scrollTop = 0;
     celebrationTimers.forEach(clearTimeout);
     celebrationTimers = [
-      setTimeout(() => { [...map.children].forEach((cell, k) => { cell.className = 'c-' + to[k]; }); }, calm ? 0 : 1300),
+      setTimeout(() => { [...mapEl.children].forEach((el, k) => { el.className = cellCls(map.cells[k].to); }); }, calm ? 0 : 1300),
       setTimeout(() => actions.classList.add('ready'), calm ? 0 : (superstar ? 1200 : 2400))
     ];
   }
 
   function closeCelebration() {
+    celebrationQueue = [];
     $('#levelUp').hidden = true;
     if ($('#home').classList.contains('active')) renderHome();
   }
-
-  $('#lvlGo').addEventListener('click', closeCelebration);
-  $('#keepPlaying').addEventListener('click', closeCelebration);
+  $('#lvlGo').addEventListener('click', nextCelebration);
+  $('#keepPlaying').addEventListener('click', nextCelebration);
   $('#startAgain').addEventListener('click', () => {
-    confirmBox('Start again from Level 1? This wipes all progress on this phone.', 'Start again', true, () => {
-      data = blank();
+    confirmBox(`Start ${G().label} again from level 1? This wipes its progress on this device.`, 'Start again', true, () => {
+      data.g[cur] = blankGame();
       save();
-      selected = null;
+      celebrationQueue = [];
       $('#levelUp').hidden = true;
       show('home');
-      toast('Back to Level 1');
+      toast('Back to level 1');
     });
   });
 
-  /* ---------- Heat map ---------- */
-  const gridEl = $('#grid'), infoEl = $('#info');
-  let selected = null;
+  /* ---------- Progress: levels, heat map and stars ---------- */
+  const gridEl = $('#grid'), infoEl = $('#info'), levelsEl = $('#levels');
+  let viewL = 1, selected = null, hint = '';
+
+  function openMap(level) {
+    viewL = level || gd().sel;
+    selected = null;
+    show('map');
+  }
 
   function renderMap() {
-    const bands = bandsNow();
-    let html = '<span class="hd corner">×</span>';
-    for (let b = 1; b <= 12; b++) html += `<span class="hd" data-col="${b}">${b}</span>`;
-    let i = 0;
-    for (let a = 1; a <= 12; a++) {
-      html += `<span class="hd" data-row="${a}">${a}</span>`;
-      for (let b = 1; b <= 12; b++) {
-        html += `<button class="sq c-${bands[i++]}" data-a="${a}" data-b="${b}" aria-label="${a} times ${b}"></button>`;
-      }
+    const game = G(), g = gd();
+    if (viewL > g.unlocked) viewL = g.sel;
+    let tiles = '';
+    for (let n = 1; n <= 6; n++) {
+      const locked = n > g.unlocked;
+      const lv = g.levels[n] || {};
+      const mark = locked ? LOCK : lv.star ? '<b class="star">★</b>' : lv.passed ? '<i></i>' : '';
+      const label = `Level ${n}${locked ? ', locked' : lv.star ? ', star earned' : lv.passed ? ', passed' : ''}`;
+      tiles += `<button class="lvl${n === viewL ? ' sel' : ''}${locked ? ' locked' : ''}" data-n="${n}" role="radio" aria-checked="${n === viewL}" aria-label="${label}"><span class="lvl-n">${n}</span><span class="mark">${mark}</span></button>`;
     }
-    gridEl.innerHTML = html;
-    const L = lvl();
-    $('#lGreen').textContent = `Under ${plain(L.green)}s`;
-    $('#lAmber').textContent = `${plain(L.green)} to ${plain(L.red)}s`;
-    $('#lRed').textContent = `${plain(L.red)}s or more`;
-    $('#mapGoal').innerHTML = `Level ${data.level}: ${goalParts().text}`;
-    const t = tally();
+    levelsEl.innerHTML = tiles;
+    const L = g.levels[viewL] || blankLevel();
+    const passed = !!(L.passed || L.star);
+    $('#progName').textContent = `Level ${viewL} · ${game.levels[viewL].name}`;
+    const line = $('#progLine');
+    line.innerHTML = passed ? (L.best ? `Best <b>${fmt(L.best)}</b>.` : '') : goalText(viewL, L);
+    line.hidden = !line.innerHTML;
+    showStar($('#progStar'), viewL, L);
+    const v = game.renderGrid(viewL);
+    gridEl.className = v.cls;
+    gridEl.innerHTML = v.html;
+    hint = v.hint;
+    const t = { green: 0, once: 0, amber: 0, red: 0, none: 0 };
+    v.bands.forEach(b => { t[shade(b)] += 1; });
     $('#nGreen').textContent = t.green;
+    $('#nOnce').textContent = t.once;
     $('#nAmber').textContent = t.amber;
     $('#nRed').textContent = t.red;
     $('#nNone').textContent = t.none;
-    if (selected) selectSquare(selected[0], selected[1]);
-    else infoEl.textContent = 'Tap a square to see its average time.';
+    $('#lgOnce').hidden = !v.once;
+    $('#legend').classList.toggle('five', !!v.once);
+    const el = selected && gridEl.querySelector(`[data-k="${selected}"]`);
+    if (el) selectCell(el); else { selected = null; infoEl.textContent = hint; }
+    $('#unlockAll').hidden = g.unlocked >= 6 || !TEST_PAGE; // a testing aid, never in the live app
+    // The test page can't hand over files; Back up works once the app is on GitHub
+    $('#backup').hidden = !!window.claude;
   }
 
-  function selectSquare(a, b) {
-    selected = [a, b];
-    gridEl.querySelectorAll('.sel').forEach(x => x.classList.remove('sel'));
-    gridEl.querySelectorAll('.on').forEach(x => x.classList.remove('on'));
-    gridEl.querySelector(`.sq[data-a="${a}"][data-b="${b}"]`).classList.add('sel');
-    gridEl.querySelector(`[data-row="${a}"]`).classList.add('on');
-    gridEl.querySelector(`[data-col="${b}"]`).classList.add('on');
-    const s = stats(a, b);
-    if (s.band === 'none') { infoEl.innerHTML = `<b>${a} × ${b}</b> hasn’t come up yet.`; return; }
-    if (s.fresh) {
-      infoEl.innerHTML = `<b>${a} × ${b}</b> hasn’t come up at this level yet. Under ${plain(lvl().green)}s turns it green.`;
-      return;
-    }
-    const over = s.tries === 1 ? 'from 1 try' : `over the last ${s.tries} tries`;
-    const wrongText = s.wrong ? `, with ${s.wrong} wrong` : '';
-    infoEl.innerHTML = `<b>${a} × ${b}</b> averages <b class="t-${s.band}">${secs(s.avg)}</b> ${over}${wrongText}.`;
+  function selectCell(el) {
+    gridEl.querySelectorAll('.sel, .on').forEach(x => x.classList.remove('sel', 'on'));
+    el.classList.add('sel');
+    const row = gridEl.querySelector(`[data-row="${el.dataset.r}"]`), col = gridEl.querySelector(`[data-col="${el.dataset.c}"]`);
+    if (row) row.classList.add('on');
+    if (col) col.classList.add('on');
+    selected = el.dataset.k;
+    infoEl.innerHTML = G().cellInfo(el, viewL);
   }
 
   gridEl.addEventListener('click', e => {
-    const sq = e.target.closest('.sq');
-    if (sq) selectSquare(+sq.dataset.a, +sq.dataset.b);
+    const el = e.target.closest('.sq, .cell');
+    if (el) selectCell(el);
+  });
+
+  // Picking a level here shows its heat map, and it's the level you play next
+  levelsEl.addEventListener('click', e => {
+    const btn = e.target.closest('.lvl');
+    if (!btn) return;
+    const n = +btn.dataset.n, g = gd();
+    if (n > g.unlocked) {
+      toast(n === g.unlocked + 1
+        ? `Score ${TARGET} ${WORDS[STREAK]} rounds in a row at level ${n - 1} to unlock level ${n}`
+        : `Unlock level ${n - 1} first`);
+      return;
+    }
+    g.sel = n;
+    viewL = n;
+    selected = null;
+    save();
+    renderMap();
+  });
+
+  $('#unlockAll').addEventListener('click', () => {
+    gd().unlocked = 6;
+    save();
+    renderMap();
+    toast('All six levels unlocked for testing');
   });
 
   /* ---------- Back up, restore, reset ---------- */
   function backup() {
-    const payload = JSON.stringify({ app: 'times-tables', saved: new Date().toISOString(), data });
-    const name = `times-tables-backup-${new Date().toISOString().slice(0, 10)}`;
+    const payload = JSON.stringify({ app: 'mental-maths', saved: new Date().toISOString(), data });
+    const name = `mental-maths-backup-${new Date().toISOString().slice(0, 10)}`;
     const files = [
       new File([payload], name + '.json', { type: 'application/json' }),
       new File([payload], name + '.txt', { type: 'text/plain' })
@@ -954,7 +2566,7 @@
         let ok = false;
         try { ok = navigator.canShare({ files: [file] }); } catch (e) { ok = false; }
         if (ok) {
-          navigator.share({ files: [file], title: 'Times Tables backup' })
+          navigator.share({ files: [file], title: 'Mental Maths backup' })
             .catch(err => { if (!err || err.name !== 'AbortError') download(payload, name + '.json'); });
           return;
         }
@@ -979,27 +2591,34 @@
     }
   }
 
-  const readText = file => file.text ? file.text() : new Promise((resolve, reject) => {
+  const readText = file => (file.text ? file.text() : new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result);
     r.onerror = reject;
     r.readAsText(file);
-  });
+  }));
 
+  // Takes this app's backups, and Times Tables backups (which replace times tables progress only)
   $('#file').addEventListener('change', async e => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
     let parsed = null;
     try { parsed = JSON.parse(await readText(file)); } catch (err) { parsed = null; }
-    const incoming = parsed && parsed.app === 'times-tables' ? clean(parsed.data) : null;
-    if (!incoming) { toast('Choose a times-tables-backup file'); return; }
+    let incoming = null, timesOnly = false;
+    if (parsed && parsed.app === 'mental-maths') incoming = clean(parsed.data);
+    else if (parsed && parsed.app === 'times-tables') { incoming = migrateTimes(parsed.data); timesOnly = !!incoming; }
+    if (!incoming) { toast('Choose a Mental Maths or Times Tables backup file'); return; }
     const when = new Date(parsed.saved);
-    const which = isNaN(when) ? 'this backup' : 'the backup from ' + when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    confirmBox(`Restore ${which}? It’s on Level ${incoming.level} and replaces the progress on this phone.`, 'Restore', false, () => {
-      data = incoming;
+    const date = isNaN(when) ? '' : ' from ' + when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const text = timesOnly
+      ? `Restore the Times Tables backup${date}? It’s on level ${incoming.unlocked} and replaces the times tables progress on this device.`
+      : `Restore the backup${date}? It replaces all progress on this device.`;
+    confirmBox(text, 'Restore', false, () => {
+      if (timesOnly) { data.g.times = incoming; awardStars('times'); } else data = incoming;
       save();
       selected = null;
+      viewL = gd().sel;
       renderMap();
       toast('Progress restored');
     });
@@ -1007,10 +2626,11 @@
 
   $('#backup').addEventListener('click', backup);
   $('#reset').addEventListener('click', () => {
-    confirmBox('Reset all progress on this phone and go back to Level 1? A backup is the only way to get it back.', 'Reset', true, () => {
-      data = blank();
+    confirmBox(`Reset all ${G().label} progress on this device? Levels, scores, stars and heat maps will be cleared. A backup is the only way to get it back.`, 'Reset', true, () => {
+      data.g[cur] = blankGame();
       save();
       selected = null;
+      viewL = 1;
       renderMap();
       toast('Progress reset');
     });
@@ -1018,17 +2638,25 @@
 
   /* ---------- Confirm sheet and toast ---------- */
   const modal = $('#modal'), modalYes = $('#modalYes');
-  let onYes = null;
-  function confirmBox(text, yesLabel, danger, fn) {
+  let onYes = null, onNo = null;
+  function confirmBox(text, yesLabel, danger, fn, opts = {}) {
     $('#modalText').textContent = text;
     modalYes.textContent = yesLabel;
     modalYes.className = 'btn ' + (danger ? 'btn-danger' : 'btn-ok');
+    $('#modalNo').textContent = opts.no || 'Cancel';
     onYes = fn;
+    onNo = opts.onNo || null;
     modal.hidden = false;
   }
-  modalYes.addEventListener('click', () => { modal.hidden = true; const fn = onYes; onYes = null; if (fn) fn(); });
-  $('#modalNo').addEventListener('click', () => { modal.hidden = true; onYes = null; });
-  modal.addEventListener('click', e => { if (e.target === modal) { modal.hidden = true; onYes = null; } });
+  function closeModal(yes) {
+    modal.hidden = true;
+    const fn = yes ? onYes : onNo;
+    onYes = onNo = null;
+    if (fn) fn();
+  }
+  modalYes.addEventListener('click', () => closeModal(true));
+  $('#modalNo').addEventListener('click', () => closeModal(false));
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(false); });
 
   let toastTimer = null;
   function toast(msg) {
@@ -1036,30 +2664,53 @@
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
   }
 
   /* ---------- Wire up ---------- */
-  $('#go').addEventListener('click', startRound);
-  $('#again').addEventListener('click', startRound);
-  $('#openMap').addEventListener('click', () => show('map'));
-  $('#resMap').addEventListener('click', () => show('map'));
+  $('#toGames').addEventListener('click', () => show('games'));
+  $('#go').addEventListener('click', () => startRound(gd().sel));
+  $('#again').addEventListener('click', () => startRound(last && last.unlockedNow ? last.level + 1 : (last ? last.level : gd().sel)));
+  $('#openMap').addEventListener('click', () => openMap());
+  $('#resMap').addEventListener('click', () => openMap(last ? last.level : gd().sel));
+  function openManual(html) {
+    $('#manText').innerHTML = html;
+    $('#manual').hidden = false;
+    $('#manual').scrollTop = 0;
+  }
+  $('#homeInfo').addEventListener('click', () => openManual(G().manual()));
+  $('#mapInfo').addEventListener('click', () => openManual(G().manual()));
+  $('#manClose').addEventListener('click', () => { $('#manual').hidden = true; });
   $('#resHome').addEventListener('click', () => show('home'));
   $('#mapBack').addEventListener('click', () => show('home'));
-  $('#quit').addEventListener('click', quitRound);
+  $('#quit').addEventListener('click', () => { if (arc) arcQuit(); else quitRound(); });
 
   if (!store.persistent) $('#note').hidden = false;
 
   // Offline support and full-screen launch once it's on the home screen
   try {
-    if ('serviceWorker' in navigator && window.isSecureContext) {
+    if ('serviceWorker' in navigator && window.isSecureContext && /github\.io$/.test(location.hostname)) {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
     const installed = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     if (installed && navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   } catch (e) { /* not available in previews */ }
 
-  show('home');
+  // Hooks for automated checks
+  window.__mm = {
+    TT, AS, GAMES, points, streakOf, summarise, migrateTimes, migrateAddsub, clean, carries, borrows,
+    getData: () => JSON.parse(JSON.stringify(data)),
+    setData: d => { data = clean(d) || blank(); save(); show('games'); },
+    open: id => openGame(id),
+    keys: { STORE_KEY, OLD_TIMES_KEY, OLD_ADDSUB_KEY },
+    arcade: {
+      Q: arcQ, rematch: arcRematch, reds: arcReds, points: arcPoints, mult: arcMult, lifeAt, solveT, bigNum,
+      speedUp: arcSpeedUp, ttPar: arcTTPar, clean: cleanArcade, stageName: arcStageName,
+      get: () => arc, over: () => arcOver
+    }
+  };
+
+  show('games');
 })();
 </script>
 </body>
